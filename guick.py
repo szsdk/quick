@@ -13,7 +13,7 @@ import click
 
 
 def get_guicktext(label='Title'):
-    param = QLabel(label)
+    param = QLabel(label=label)
     value = QLineEdit()
     grid = QGridLayout()
     grid.setSpacing(10)
@@ -33,13 +33,19 @@ class GuickText(QGridLayout):
         self.addWidget(self.param, 1, 0)
         self.addWidget(self.value, 1, 1)
 
+    def getValue(self):
+        return self.value.text()
 
 
 @click.command()
-@click.option("--helo")
-def example_cmd(helo):
-    print(helo)
+@click.option("--hello")
+@click.option("--add", type=int)
+def example_cmd(hello, add):
+    print(hello)
+    print(add+1)
 
+def get_guickwidget(opt):
+    return GuickText(label=opt.name)
 
 class App(QWidget):
 
@@ -57,34 +63,36 @@ class App(QWidget):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
 
-        grid = QGridLayout()
-        grid.setSpacing(10)
-        # text = get_guicktext()
-        text = GuickText()
-        grid.addLayout(text, 1, 0)
-        text2 = GuickText(label="2")
-        grid.addLayout(text2, 2, 0)
-        self.setLayout(grid)
+        self.grid = QGridLayout()
+        self.grid.setSpacing(10)
+        self.params = []
+        for i, para in enumerate(self.func.params):
+            para_widget = get_guickwidget(para)
+            self.params.append((para, para_widget))
+            self.grid.addLayout(para_widget, i, 0)
+        # Create a button in the window
+        self.button = QPushButton('run', self)
+        self.grid.addWidget(self.button, i+1, 0)
+        # self.button.move(20, 80)
+
+        # connect button to function on_click
+        self.button.clicked.connect(self.on_click)
+        self.setLayout(self.grid)
 
         # Create textbox
         # self.textbox = QLineEdit(self)
         # self.textbox.move(20, 20)
         # self.textbox.resize(280, 40)
 
-        # Create a button in the window
-        # self.button = QPushButton('run', self)
-        # self.button.move(20, 80)
-
-        # connect button to function on_click
-        # self.button.clicked.connect(self.on_click)
         self.show()
 
     @pyqtSlot()
     def on_click(self):
         sys.argv = [self.func.name]
-        sys.argv.append(self.func.params[0].opts[0])
-        textboxValue = self.textbox.text()
-        sys.argv.append(textboxValue)
+        for param, param_widget in self.params:
+            sys.argv.append(param.opts[0])
+            textboxValue = param_widget.getValue()
+            sys.argv.append(textboxValue)
         print(sys.argv)
         self.func()
 
