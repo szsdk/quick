@@ -1,6 +1,6 @@
 import sys
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget,\
-    QPushButton, QAction, QLineEdit, QMessageBox
+    QPushButton, QAction, QLineEdit, QMessageBox, QGridLayout, QLabel
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot
 # from PyQt5 import QtCore
@@ -12,13 +12,36 @@ from PyQt5.QtCore import pyqtSlot
 import click
 
 
+def get_guicktext(label='Title'):
+    param = QLabel(label)
+    value = QLineEdit()
+    grid = QGridLayout()
+    grid.setSpacing(10)
+    grid.addWidget(param, 1, 0)
+    grid.addWidget(value, 1, 1)
+    return grid
+
+class GuickText(QGridLayout):
+    def __init__(self, label="Title"):
+        super().__init__()
+        self.initUI(label)
+
+    def initUI(self, label):
+        self.param = QLabel(label)
+        self.value = QLineEdit()
+        self.setSpacing(10)
+        self.addWidget(self.param, 1, 0)
+        self.addWidget(self.value, 1, 1)
+
+
+
 @click.command()
 @click.option("--helo")
 def example_cmd(helo):
     print(helo)
 
 
-class App(QMainWindow):
+class App(QWidget):
 
     def __init__(self, func):
         super().__init__()
@@ -34,17 +57,26 @@ class App(QMainWindow):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
 
+        grid = QGridLayout()
+        grid.setSpacing(10)
+        # text = get_guicktext()
+        text = GuickText()
+        grid.addLayout(text, 1, 0)
+        text2 = GuickText(label="2")
+        grid.addLayout(text2, 2, 0)
+        self.setLayout(grid)
+
         # Create textbox
-        self.textbox = QLineEdit(self)
-        self.textbox.move(20, 20)
-        self.textbox.resize(280, 40)
+        # self.textbox = QLineEdit(self)
+        # self.textbox.move(20, 20)
+        # self.textbox.resize(280, 40)
 
         # Create a button in the window
-        self.button = QPushButton('run', self)
-        self.button.move(20, 80)
+        # self.button = QPushButton('run', self)
+        # self.button.move(20, 80)
 
         # connect button to function on_click
-        self.button.clicked.connect(self.on_click)
+        # self.button.clicked.connect(self.on_click)
         self.show()
 
     @pyqtSlot()
