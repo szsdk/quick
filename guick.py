@@ -1,51 +1,29 @@
 import sys
+from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget,\
     QPushButton, QAction, QLineEdit, QMessageBox, QGridLayout, QLabel
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot
+### For high dpi screen
 # from PyQt5 import QtCore
 # if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
     # QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 
 # if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
     # QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
+
 import click
 
 
-def get_guicktext(label='Title'):
-    param = QLabel(label=label)
+def text_param(opt):
+    param = QLabel(opt.name)
     value = QLineEdit()
-    grid = QGridLayout()
-    grid.setSpacing(10)
-    grid.addWidget(param, 1, 0)
-    grid.addWidget(value, 1, 1)
-    return grid
+    param.setToolTip(opt.help)
 
-class GuickText(QGridLayout):
-    def __init__(self, label="Title"):
-        super().__init__()
-        self.initUI(label)
+    def to_command():
+        return [opt.opts[0], value.text()]
+    return [param, value], to_command
 
-    def initUI(self, label):
-        self.param = QLabel(label)
-        self.value = QLineEdit()
-        self.setSpacing(10)
-        self.addWidget(self.param, 1, 0)
-        self.addWidget(self.value, 1, 1)
-
-    def getValue(self):
-        return self.value.text()
-
-
-@click.command()
-@click.option("--hello")
-@click.option("--add", type=int)
-def example_cmd(hello, add):
-    print(hello)
-    print(add+1)
-
-def get_guickwidget(opt):
-    return GuickText(label=opt.name)
 
 class App(QWidget):
 
@@ -65,11 +43,15 @@ class App(QWidget):
 
         self.grid = QGridLayout()
         self.grid.setSpacing(10)
-        self.params = []
+        self.params_func = []
         for i, para in enumerate(self.func.params):
-            para_widget = get_guickwidget(para)
-            self.params.append((para, para_widget))
-            self.grid.addLayout(para_widget, i, 0)
+            widget, value_func = text_param(para)
+            self.params_func.append(value_func)
+            for idx, w in enumerate(widget):
+                if isinstance(w, QtWidgets.QLayout):
+                    self.grid.addLayout(w, i, idx)
+                else:
+                    self.grid.addWidget(w, i, idx)
         # Create a button in the window
         self.button = QPushButton('run', self)
         self.grid.addWidget(self.button, i+1, 0)
@@ -79,26 +61,17 @@ class App(QWidget):
         self.button.clicked.connect(self.on_click)
         self.setLayout(self.grid)
 
-        # Create textbox
-        # self.textbox = QLineEdit(self)
-        # self.textbox.move(20, 20)
-        # self.textbox.resize(280, 40)
-
         self.show()
 
     @pyqtSlot()
     def on_click(self):
         sys.argv = [self.func.name]
-        for param, param_widget in self.params:
-            sys.argv.append(param.opts[0])
-            textboxValue = param_widget.getValue()
-            sys.argv.append(textboxValue)
+        for value_func in self.params_func:
+            sys.argv += value_func()
         print(sys.argv)
         self.func()
 
-
-if __name__ == "__main__":
-    # example_cmd()
+def gui_it(click_func):
     app = QApplication(sys.argv)
-    ex = App(example_cmd)
+    ex = App(click_func)
     sys.exit(app.exec_())
