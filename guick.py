@@ -24,6 +24,8 @@ def text_param(opt):
     # add validator
     if isinstance(opt.type, click.types.IntParamType):
         value.setValidator(QtGui.QIntValidator())
+    elif isinstance(opt.type, click.types.FloatParamType):
+        value.setValidator(QtGui.QDoubleValidator())
 
     def to_command():
         return [opt.opts[0], value.text()]
