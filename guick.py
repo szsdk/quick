@@ -2,7 +2,7 @@ import sys
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget,\
     QPushButton, QAction, QLineEdit, QMessageBox, QGridLayout, QLabel
-from PyQt5.QtGui import QIcon
+from PyQt5 import QtGui
 from PyQt5.QtCore import pyqtSlot
 ### For high dpi screen
 # from PyQt5 import QtCore
@@ -18,7 +18,12 @@ import click
 def text_param(opt):
     param = QLabel(opt.name)
     value = QLineEdit()
+
+    # set tip
     param.setToolTip(opt.help)
+    # add validator
+    if isinstance(opt.type, click.types.IntParamType):
+        value.setValidator(QtGui.QIntValidator())
 
     def to_command():
         return [opt.opts[0], value.text()]
