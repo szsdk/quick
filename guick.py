@@ -2,7 +2,7 @@ import sys
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget,\
     QPushButton, QAction, QLineEdit, QMessageBox, QGridLayout, QLabel,\
-    QCheckBox
+    QCheckBox, QComboBox, QSpinBox
 from PyQt5 import QtGui
 from PyQt5.QtCore import pyqtSlot
 ### For high dpi screen
@@ -19,13 +19,15 @@ import click
 def text_param(opt):
     param = QLabel(opt.name)
     value = QLineEdit()
+    if opt.hide_input:
+        value.setEchoMode(QLineEdit.Password)
 
     # set tip
     param.setToolTip(opt.help)
     # add validator
-    if isinstance(opt.type, click.types.IntParamType):
+    if isinstance(opt.type, click.types.IntParamType) and opt.nargs == 1:
         value.setValidator(QtGui.QIntValidator())
-    elif isinstance(opt.type, click.types.FloatParamType):
+    elif isinstance(opt.type, click.types.FloatParamType) and opt.nargs == 1:
         value.setValidator(QtGui.QDoubleValidator())
 
     def to_command():
@@ -47,10 +49,36 @@ def bool_flag_param(opt):
             return opt.secondary_opts
     return [checkbox], to_command
 
+def choice_param(opt):
+    param = QLabel(opt.name)
+    # set tip
+    param.setToolTip(opt.help)
+    cb = QComboBox()
+    cb.addItems(opt.type.choices)
+
+    def to_command():
+        return [opt.opts[0], cb.currentText()]
+    return [param, cb], to_command
+
+def count_param(opt):
+    param = QLabel(opt.name)
+    # set tip
+    param.setToolTip(opt.help)
+
+    sb = QSpinBox()
+
+    def to_command():
+        return [opt.opts[0]] * int(sb.text())
+    return [param, sb], to_command
+
 
 def opt_to_widget(opt):
     if opt.is_bool_flag:
         return bool_flag_param(opt)
+    elif opt.count:
+        return count_param(opt)
+    elif isinstance(opt.type, click.types.Choice):
+        return choice_param(opt)
     else:
         return text_param(opt)
 
@@ -101,7 +129,6 @@ class App(QWidget):
             sys.argv += value_func()
         print(sys.argv)
         self.func(standalone_mode=self.run_exit)
-        print("===========")
 
 
 def gui_it(click_func, run_exit=False):
