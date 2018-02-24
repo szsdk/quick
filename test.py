@@ -2,7 +2,7 @@ from guick import gui_it
 import click
 
 @click.command()
-@click.option("--hello", help="say hello")
+@click.option("--hello", default="world", help="say hello")
 @click.option("--add", type=int, help="input an integer number",\
               hide_input=True)
 @click.option("--times", type=float, help="input a double number")

@@ -19,6 +19,7 @@ import click
 def text_param(opt):
     param = QLabel(opt.name)
     value = QLineEdit()
+    value.setText(opt.default)
     if opt.hide_input:
         value.setEchoMode(QLineEdit.Password)
 
