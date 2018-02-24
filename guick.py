@@ -2,7 +2,7 @@ import sys
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget,\
     QPushButton, QAction, QLineEdit, QMessageBox, QGridLayout, QLabel,\
-    QCheckBox, QComboBox, QSpinBox
+    QCheckBox, QComboBox, QSpinBox, QTabWidget, QVBoxLayout
 from PyQt5 import QtGui
 from PyQt5.QtCore import pyqtSlot
 ### For high dpi screen
@@ -84,50 +84,116 @@ def opt_to_widget(opt):
         return text_param(opt)
 
 
-class App(QWidget):
+def layout_append_opts(layout, opts):
+    params_func = []
+    i = 0
+    for i, para in enumerate(opts):
+        widget, value_func = opt_to_widget(para)
+        params_func.append(value_func)
+        for idx, w in enumerate(widget):
+            if isinstance(w, QtWidgets.QLayout):
+                layout.addLayout(w, i, idx)
+            else:
+                layout.addWidget(w, i, idx)
+    return layout, params_func
 
+def generate_sysargv(cmd_list):
+    argv_list = []
+    for name, func_list in cmd_list:
+        argv_list.append(name)
+        for value_func in func_list:
+            argv_list += value_func()
+    return argv_list
+
+class OptionWidgetSet(object):
+    def __init__(self, func, run_exit, prefix=[]):
+        self.func = func
+        self.run_exit = run_exit
+        self.prefix = prefix
+        self.grid = QGridLayout()
+        self.grid.setSpacing(10)
+        self.grid, self.params_func =\
+            layout_append_opts(self.grid, self.func.params)
+
+        # self.button = QPushButton('run')
+        # self.grid.addWidget(self.button, self.grid.rowCount()+1, 0)
+
+        # connect button to function on_click
+        # self.button.clicked.connect(self.on_click)
+
+    @pyqtSlot()
+    def add_sysargv(self):
+        sys.argv += generate_sysargv(
+            self.prefix + [(self.func.name, self.params_func)]
+        )
+        # self.func(standalone_mode=self.run_exit)
+
+
+class App(QWidget):
     def __init__(self, func, run_exit):
         super().__init__()
-        self.func = func
         self.title = func.name
+        self.func = func
         self.left = 10
         self.top = 10
         self.width = 400
         self.height = 140
-        self.run_exit = run_exit
-        self.initUI()
+        self.initUI(run_exit)
 
-    def initUI(self):
+    def initUI(self, run_exit):
+        self.run_exit = run_exit
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
 
-        self.grid = QGridLayout()
-        self.grid.setSpacing(10)
-        self.params_func = []
-        for i, para in enumerate(self.func.params):
-            widget, value_func = opt_to_widget(para)
-            self.params_func.append(value_func)
-            for idx, w in enumerate(widget):
-                if isinstance(w, QtWidgets.QLayout):
-                    self.grid.addLayout(w, i, idx)
-                else:
-                    self.grid.addWidget(w, i, idx)
-        # Create a button in the window
-        self.button = QPushButton('run', self)
-        self.grid.addWidget(self.button, i+1, 0)
-        # self.button.move(20, 80)
+        # self.command_layout = OptionWidgetSet(func, run_exit)
+        # self.setLayout(self.command_layout.grid)
+        # else:
 
-        # connect button to function on_click
-        self.button.clicked.connect(self.on_click)
-        self.setLayout(self.grid)
+        self.group_opt_set = OptionWidgetSet(self.func, self.run_exit)
+        if not isinstance(self.func, click.core.Group):
+            button = QPushButton('run')
+            self.group_opt_set.grid.addWidget(
+                button, self.group_opt_set.grid.rowCount()+1, 0
+            )
+            # connect button to function on_click
+            button.clicked.connect(self.clean_sysargv)
+            button.clicked.connect(self.group_opt_set.add_sysargv)
+            button.clicked.connect(self.run_cmd)
+        else:
+            self.tabs = QTabWidget()
+            self.tab_widget_list = []
+            self.cmd_opt_list= []
+            for cmd, f in self.func.commands.items():
+                tab = QWidget()
+                opt_set = OptionWidgetSet(f, run_exit)
+                self.cmd_opt_list.append(opt_set)
+                tab.layout = self.cmd_opt_list[-1].grid
+                # Add tabs
+                self.tabs.addTab(tab, cmd)
+                tab.setLayout(tab.layout)
+                self.tab_widget_list.append(tab)
+
+                button = QPushButton('run')
+                opt_set.grid.addWidget(button, opt_set.grid.rowCount()+1, 0)
+
+                # connect button to function on_click
+                button.clicked.connect(self.clean_sysargv)
+                button.clicked.connect(self.group_opt_set.add_sysargv)
+                button.clicked.connect(opt_set.add_sysargv)
+                button.clicked.connect(self.run_cmd)
+
+            self.group_opt_set.grid.addWidget(self.tabs)
+
+        self.setLayout(self.group_opt_set.grid)
 
         self.show()
 
     @pyqtSlot()
-    def on_click(self):
-        sys.argv = [self.func.name]
-        for value_func in self.params_func:
-            sys.argv += value_func()
+    def clean_sysargv(self):
+        sys.argv = []
+
+    @pyqtSlot()
+    def run_cmd(self):
         print(sys.argv)
         self.func(standalone_mode=self.run_exit)
 
