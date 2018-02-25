@@ -1,4 +1,5 @@
 import sys
+from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget,\
     QPushButton, QAction, QLineEdit, QMessageBox, QGridLayout, QLabel,\
@@ -106,25 +107,17 @@ def generate_sysargv(cmd_list):
     return argv_list
 
 class OptionWidgetSet(object):
-    def __init__(self, func, run_exit, prefix=[]):
+    def __init__(self, func, run_exit):
         self.func = func
         self.run_exit = run_exit
-        self.prefix = prefix
         self.grid = QGridLayout()
         self.grid.setSpacing(10)
         self.grid, self.params_func =\
             layout_append_opts(self.grid, self.func.params)
 
-        # self.button = QPushButton('run')
-        # self.grid.addWidget(self.button, self.grid.rowCount()+1, 0)
-
-        # connect button to function on_click
-        # self.button.clicked.connect(self.on_click)
-
-    @pyqtSlot()
     def add_sysargv(self):
         sys.argv += generate_sysargv(
-            self.prefix + [(self.func.name, self.params_func)]
+            [(self.func.name, self.params_func)]
         )
         # self.func(standalone_mode=self.run_exit)
 
@@ -144,10 +137,6 @@ class App(QWidget):
         self.run_exit = run_exit
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
-
-        # self.command_layout = OptionWidgetSet(func, run_exit)
-        # self.setLayout(self.command_layout.grid)
-        # else:
 
         self.group_opt_set = OptionWidgetSet(self.func, self.run_exit)
         if not isinstance(self.func, click.core.Group):

@@ -1,7 +1,13 @@
 from guick import gui_it
 import click
 
-@click.command()
+@click.group()
+@click.option('--debug/--no-debug', default=False)
+def cli(debug):
+    print(debug)
+
+
+@cli.command()
 @click.option("--hello", default="world", help="say hello")
 @click.option("--add", type=int, help="input an integer number",\
               hide_input=True)
@@ -15,23 +21,17 @@ def example_cmd(**argvs):
         print(k, v, type(v))
 
 
-@click.group()
-def cli():
-    pass
-# @click.option('--debug/--no-debug', default=False)
-# def cli(debug):
-    # print(debug)
-    # click.echo('Debug mode is %s' % ('on' if debug else 'off'))
-
 @cli.command()
 @click.option("--hello")
 def sync(hello):
     print('Synching', hello)
 
+
 @cli.command()
 def func():
     print("func")
 
+
 if __name__ == "__main__":
-    gui_it(example_cmd, run_exit=False)
-    # gui_it(cli, run_exit=False)
+    # gui_it(example_cmd, run_exit=True)
+    gui_it(cli, run_exit=False)
