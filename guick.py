@@ -14,20 +14,26 @@ from PyQt5.QtCore import *
 import click
 
 class GListView(QListView):
-    def __init__(self):
+    def __init__(self, nargs):
         super().__init__()
+        self.nargs = nargs
         self.model = QStandardItemModel(self)
-        self.model.appendRow(QStandardItem())
+        if nargs > 0:
+            for _ in range(nargs):
+                self.model.appendRow(QStandardItem())
+        else:
+            self.model.appendRow(QStandardItem())
         self.setModel(self.model)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
     def keyPressEvent(self, e):
-        if e.key() == Qt.Key_Delete:
-            for i in self.selectedIndexes():
-                self.model.removeRow(i.row())
-        elif e.key() == Qt.Key_T:
-            for i in self.selectedIndexes():
-                self.model.insertRow(i.row())
+        if self.nargs == -1:
+            if e.key() == Qt.Key_Delete:
+                for i in self.selectedIndexes():
+                    self.model.removeRow(i.row())
+            elif e.key() == Qt.Key_T:
+                for i in self.selectedIndexes():
+                    self.model.insertRow(i.row())
         super(GListView, self).keyPressEvent(e)
 
 def text_param(opt):
@@ -89,7 +95,7 @@ def count_param(opt):
 
 def multi_text_param(opt):
     param = QLabel(opt.name)
-    value = GListView()
+    value = GListView(opt.nargs)
     def to_command():
         _ = [opt.opts[0]]
         for idx in range(value.model.rowCount()):
