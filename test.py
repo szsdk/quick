@@ -12,6 +12,7 @@ def cli(debug):
 @click.option("--add", type=int, help="input an integer number",\
               hide_input=True)
 @click.option("--times", type=float, help="input a double number")
+@click.option("--minus", type=float, help="input two numbers", nargs=2)
 @click.option("--flag", is_flag=True)
 @click.option('--shout/--no-shout', default=True)
 @click.option('--language', type=click.Choice(['c', 'c++']))

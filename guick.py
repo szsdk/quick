@@ -1,11 +1,8 @@
 import sys
-from PyQt5.QtCore import QObject, pyqtSignal
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget,\
-    QPushButton, QAction, QLineEdit, QMessageBox, QGridLayout, QLabel,\
-    QCheckBox, QComboBox, QSpinBox, QTabWidget, QVBoxLayout
-from PyQt5 import QtGui
-from PyQt5.QtCore import pyqtSlot
+from PyQt5 import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
 ### For high dpi screen
 # from PyQt5 import QtCore
 # if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
@@ -16,6 +13,22 @@ from PyQt5.QtCore import pyqtSlot
 
 import click
 
+class GListView(QListView):
+    def __init__(self):
+        super().__init__()
+        self.model = QStandardItemModel(self)
+        self.model.appendRow(QStandardItem())
+        self.setModel(self.model)
+        self.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
+    def keyPressEvent(self, e):
+        if e.key() == Qt.Key_Delete:
+            for i in self.selectedIndexes():
+                self.model.removeRow(i.row())
+        elif e.key() == Qt.Key_T:
+            for i in self.selectedIndexes():
+                self.model.insertRow(i.row())
+        super(GListView, self).keyPressEvent(e)
 
 def text_param(opt):
     param = QLabel(opt.name)
@@ -28,9 +41,9 @@ def text_param(opt):
     param.setToolTip(opt.help)
     # add validator
     if isinstance(opt.type, click.types.IntParamType) and opt.nargs == 1:
-        value.setValidator(QtGui.QIntValidator())
+        value.setValidator(QIntValidator())
     elif isinstance(opt.type, click.types.FloatParamType) and opt.nargs == 1:
-        value.setValidator(QtGui.QDoubleValidator())
+        value.setValidator(QDoubleValidator())
 
     def to_command():
         return [opt.opts[0], value.text()]
@@ -74,8 +87,20 @@ def count_param(opt):
     return [param, sb], to_command
 
 
+def multi_text_param(opt):
+    param = QLabel(opt.name)
+    value = GListView()
+    def to_command():
+        _ = [opt.opts[0]]
+        for idx in range(value.model.rowCount()):
+            _.append(value.model.item(idx).text())
+        return _
+    return [param, value], to_command
+
 def opt_to_widget(opt):
-    if opt.is_bool_flag:
+    if opt.nargs > 1:
+        return multi_text_param(opt)
+    elif opt.is_bool_flag:
         return bool_flag_param(opt)
     elif opt.count:
         return count_param(opt)
@@ -92,7 +117,7 @@ def layout_append_opts(layout, opts):
         widget, value_func = opt_to_widget(para)
         params_func.append(value_func)
         for idx, w in enumerate(widget):
-            if isinstance(w, QtWidgets.QLayout):
+            if isinstance(w, QLayout):
                 layout.addLayout(w, i, idx)
             else:
                 layout.addWidget(w, i, idx)
