@@ -8,6 +8,7 @@ def cli(debug):
 
 
 @cli.command()
+@click.argument("arg", nargs=-1)
 @click.option("--hello", default="world", help="say hello")
 @click.option("--add", type=int, help="input an integer number",\
               hide_input=True)

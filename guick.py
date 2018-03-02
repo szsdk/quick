@@ -36,7 +36,7 @@ class GListView(QListView):
                     self.model.insertRow(i.row())
         super(GListView, self).keyPressEvent(e)
 
-def text_param(opt):
+def text_option(opt):
     param = QLabel(opt.name)
     value = QLineEdit()
     value.setText(opt.default)
@@ -56,7 +56,7 @@ def text_param(opt):
     return [param, value], to_command
 
 
-def bool_flag_param(opt):
+def bool_flag_option(opt):
     checkbox = QCheckBox(opt.name)
     if opt.default:
         checkbox.setCheckState(2)
@@ -70,7 +70,7 @@ def bool_flag_param(opt):
             return opt.secondary_opts
     return [checkbox], to_command
 
-def choice_param(opt):
+def choice_option(opt):
     param = QLabel(opt.name)
     # set tip
     param.setToolTip(opt.help)
@@ -81,7 +81,7 @@ def choice_param(opt):
         return [opt.opts[0], cb.currentText()]
     return [param, cb], to_command
 
-def count_param(opt):
+def count_option(opt):
     param = QLabel(opt.name)
     # set tip
     param.setToolTip(opt.help)
@@ -93,7 +93,7 @@ def count_param(opt):
     return [param, sb], to_command
 
 
-def multi_text_param(opt):
+def multi_text_option(opt):
     param = QLabel(opt.name)
     value = GListView(opt.nargs)
     def to_command():
@@ -103,17 +103,30 @@ def multi_text_param(opt):
         return _
     return [param, value], to_command
 
+def multi_text_arg(opt):
+    param = QLabel(opt.name)
+    value = GListView(opt.nargs)
+    def to_command():
+        _ = []
+        for idx in range(value.model.rowCount()):
+            _.append(value.model.item(idx).text())
+        return _
+    return [param, value], to_command
+
+
 def opt_to_widget(opt):
-    if opt.nargs > 1:
-        return multi_text_param(opt)
+    if type(opt) == click.core.Argument:
+        return multi_text_arg(opt)
+    elif opt.nargs > 1 or opt.nargs == -1:
+        return multi_text_option(opt)
     elif opt.is_bool_flag:
-        return bool_flag_param(opt)
+        return bool_flag_option(opt)
     elif opt.count:
-        return count_param(opt)
+        return count_option(opt)
     elif isinstance(opt.type, click.types.Choice):
-        return choice_param(opt)
+        return choice_option(opt)
     else:
-        return text_param(opt)
+        return text_option(opt)
 
 
 def layout_append_opts(layout, opts):
