@@ -20,7 +20,8 @@ class GListView(QListView):
         self.model = QStandardItemModel(self)
         if nargs > 0:
             for _ in range(nargs):
-                self.model.appendRow(QStandardItem())
+                item = QStandardItem()
+                self.model.appendRow(item)
         else:
             self.model.appendRow(QStandardItem())
         self.setModel(self.model)
@@ -236,3 +237,15 @@ def gui_it(click_func, run_exit=False):
     ex = App(click_func, run_exit)
     # if exit:
     sys.exit(app.exec_())
+
+
+def gui_option(f):
+    """decorator for adding '--gui' option to command"""
+    def run_gui_it(ctx, param, value):
+        if not value or ctx.resilient_parsing:
+            return
+        f.params = [p for p in f.params if not p.name == "gui"]
+        gui_it(f)
+        ctx.exit()
+    return click.option('--gui', is_flag=True, callback=run_gui_it,
+                        expose_value=False, is_eager=False)(f)
