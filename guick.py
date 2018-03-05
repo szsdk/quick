@@ -15,6 +15,7 @@ import click
 
 class GListView(QListView):
     def __init__(self, nargs):
+        # TODO: nargs should include type information.
         super().__init__()
         self.nargs = nargs
         self.model = QStandardItemModel(self)
