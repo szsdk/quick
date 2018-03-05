@@ -1,4 +1,4 @@
-from guick import gui_it
+from guick import gui_it, gui_option
 import click
 
 @click.group()
@@ -28,12 +28,20 @@ def example_cmd(**argvs):
 def sync(hello):
     print('Synching', hello)
 
-
 @cli.command()
 def func():
     print("func")
 
+@gui_option
+@click.command()
+def option_gui():
+    """run with
+    python test.py --gui
+    """
+    print("gui_option")
+
 
 if __name__ == "__main__":
     # gui_it(example_cmd, run_exit=True)
+    # option_gui()
     gui_it(cli, run_exit=False)
