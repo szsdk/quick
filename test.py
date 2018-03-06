@@ -1,6 +1,7 @@
 from guick import gui_it, gui_option
 import click
 
+@gui_option
 @click.group()
 @click.option('--debug/--no-debug', default=False)
 def cli(debug):
@@ -32,7 +33,7 @@ def sync(hello):
 def func():
     print("func")
 
-@gui_option
+# @gui_option
 @click.command()
 def option_gui():
     """run with
@@ -44,4 +45,5 @@ def option_gui():
 if __name__ == "__main__":
     # gui_it(example_cmd, run_exit=True)
     # option_gui()
-    gui_it(cli, run_exit=False)
+    # gui_it(cli, run_exit=False)
+    cli()

@@ -41,7 +41,8 @@ class GListView(QListView):
 def text_option(opt):
     param = QLabel(opt.name)
     value = QLineEdit()
-    value.setText(opt.default)
+    if opt.default:
+        value.setText(opt.default)
     if opt.hide_input:
         value.setEchoMode(QLineEdit.Password)
 
@@ -105,7 +106,7 @@ def multi_text_option(opt):
         return _
     return [param, value], to_command
 
-def multi_text_arg(opt):
+def multi_text_arguement(opt):
     param = QLabel(opt.name)
     value = GListView(opt.nargs)
     def to_command():
@@ -115,20 +116,39 @@ def multi_text_arg(opt):
         return _
     return [param, value], to_command
 
+def text_arguement(opt):
+    param = QLabel(opt.name)
+    value = QLineEdit()
+    if opt.default:
+        value.setText(str(opt.default))
+    # add validator
+    if isinstance(opt.type, click.types.IntParamType) and opt.nargs == 1:
+        value.setValidator(QIntValidator())
+    elif isinstance(opt.type, click.types.FloatParamType) and opt.nargs == 1:
+        value.setValidator(QDoubleValidator())
+
+    def to_command():
+        return [value.text()]
+    return [param, value], to_command
+
 
 def opt_to_widget(opt):
     if type(opt) == click.core.Argument:
-        return multi_text_arg(opt)
-    elif opt.nargs > 1 or opt.nargs == -1:
-        return multi_text_option(opt)
-    elif opt.is_bool_flag:
-        return bool_flag_option(opt)
-    elif opt.count:
-        return count_option(opt)
-    elif isinstance(opt.type, click.types.Choice):
-        return choice_option(opt)
+        if opt.nargs > 1 or opt.nargs == -1:
+            return multi_text_arguement(opt)
+        else:
+            return text_arguement(opt)
     else:
-        return text_option(opt)
+        if opt.nargs > 1 or opt.nargs == -1:
+            return multi_text_option(opt)
+        elif opt.is_bool_flag:
+            return bool_flag_option(opt)
+        elif opt.count:
+            return count_option(opt)
+        elif isinstance(opt.type, click.types.Choice):
+            return choice_option(opt)
+        else:
+            return text_option(opt)
 
 
 def layout_append_opts(layout, opts):
@@ -249,4 +269,5 @@ def gui_option(f):
         gui_it(f)
         ctx.exit()
     return click.option('--gui', is_flag=True, callback=run_gui_it,
+                        help="run with gui",
                         expose_value=False, is_eager=False)(f)
