@@ -38,26 +38,39 @@ class GListView(QListView):
                     self.model.insertRow(i.row())
         super(GListView, self).keyPressEvent(e)
 
-def text_option(opt):
+
+def generate_label(opt):
     param = QLabel(opt.name)
-    value = QLineEdit()
-    if opt.default:
-        value.setText(opt.default)
-    if opt.hide_input:
-        value.setEchoMode(QLineEdit.Password)
-
-    # set tip
     param.setToolTip(opt.help)
-    # add validator
-    if isinstance(opt.type, click.types.IntParamType) and opt.nargs == 1:
+    return param
+
+class GStringLineEditor(click.types.StringParamType):
+    @staticmethod
+    def to_widget(opt):
+        value = QLineEdit()
+        if opt.default:
+            value.setText(str(opt.default))
+        if opt.hide_input:
+            value.setEchoMode(QLineEdit.Password)
+
+        def to_command():
+            return [opt.opts[0], value.text()]
+        return [generate_label(opt), value], to_command
+
+
+class GIntLineEditor(GStringLineEditor):
+    @staticmethod
+    def to_widget(opt):
+        [param, value], to_command = GStringLineEditor.to_widget(opt)
         value.setValidator(QIntValidator())
-    elif isinstance(opt.type, click.types.FloatParamType) and opt.nargs == 1:
+        return [param, value], to_command
+
+class GFloatLineEditor(GStringLineEditor):
+    @staticmethod
+    def to_widget(opt):
+        [param, value], to_command = GStringLineEditor.to_widget(opt)
         value.setValidator(QDoubleValidator())
-
-    def to_command():
-        return [opt.opts[0], value.text()]
-    return [param, value], to_command
-
+        return [param, value], to_command
 
 def bool_flag_option(opt):
     checkbox = QCheckBox(opt.name)
@@ -73,48 +86,41 @@ def bool_flag_option(opt):
             return opt.secondary_opts
     return [checkbox], to_command
 
-def choice_option(opt):
-    param = QLabel(opt.name)
-    # set tip
-    param.setToolTip(opt.help)
-    cb = QComboBox()
-    cb.addItems(opt.type.choices)
+class GChoiceComboBox(click.types.Choice):
+    @staticmethod
+    def to_widget(opt):
+        cb = QComboBox()
+        cb.addItems(opt.type.choices)
 
-    def to_command():
-        return [opt.opts[0], cb.currentText()]
-    return [param, cb], to_command
+        def to_command():
+            return [opt.opts[0], cb.currentText()]
+        return [generate_label(opt), cb], to_command
 
 def count_option(opt):
-    param = QLabel(opt.name)
-    # set tip
-    param.setToolTip(opt.help)
-
     sb = QSpinBox()
 
     def to_command():
         return [opt.opts[0]] * int(sb.text())
-    return [param, sb], to_command
+    return [generate_label(opt), sb], to_command
 
 
 def multi_text_option(opt):
-    param = QLabel(opt.name)
     value = GListView(opt.nargs)
     def to_command():
         _ = [opt.opts[0]]
         for idx in range(value.model.rowCount()):
             _.append(value.model.item(idx).text())
         return _
-    return [param, value], to_command
+    return [generate_label(opt), value], to_command
 
 def multi_text_arguement(opt):
-    param = QLabel(opt.name)
     value = GListView(opt.nargs)
     def to_command():
         _ = []
         for idx in range(value.model.rowCount()):
             _.append(value.model.item(idx).text())
         return _
-    return [param, value], to_command
+    return [QLabel(opt.name), value], to_command
 
 def text_arguement(opt):
     param = QLabel(opt.name)
@@ -134,7 +140,7 @@ def text_arguement(opt):
 
 def opt_to_widget(opt):
     #customed widget
-    if type(opt.type) == click.types.FuncParamType:
+    if isinstance(opt.type, click.types.FuncParamType):
         if hasattr(opt.type.func, 'to_widget'):
             return opt.type.func.to_widget(opt)
     elif hasattr(opt.type, 'to_widget'):
@@ -153,9 +159,13 @@ def opt_to_widget(opt):
         elif opt.count:
             return count_option(opt)
         elif isinstance(opt.type, click.types.Choice):
-            return choice_option(opt)
+            return GChoiceComboBox.to_widget(opt)
+        elif isinstance(opt.type, click.types.IntParamType):
+            return GIntLineEditor.to_widget(opt)
+        elif isinstance(opt.type, click.types.FloatParamType):
+            return GFloatLineEditor.to_widget(opt)
         else:
-            return text_option(opt)
+            return GStringLineEditor.to_widget(opt)
 
 
 def layout_append_opts(layout, opts):
