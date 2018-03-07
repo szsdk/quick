@@ -1,5 +1,5 @@
 import sys
-from PyQt5 import *
+# from PyQt5 import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -133,6 +133,10 @@ def text_arguement(opt):
 
 
 def opt_to_widget(opt):
+    print(opt.type)
+    if type(opt.type) == click.types.FuncParamType:
+        if hasattr(opt.type.func, 'to_widget'):
+            return opt.type.func.to_widget(opt)
     if type(opt) == click.core.Argument:
         if opt.nargs > 1 or opt.nargs == -1:
             return multi_text_arguement(opt)

@@ -1,5 +1,8 @@
 from guick import gui_it, gui_option
 import click
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
 
 @gui_option
 @click.group()
@@ -29,9 +32,23 @@ def example_cmd(**argvs):
 def sync(hello):
     print('Synching', hello)
 
+class MyInt(int):
+    @staticmethod
+    def to_widget(opt):
+        param = QLabel(opt.name)
+        value = QLineEdit()
+        value.setValidator(QIntValidator())
+
+        def to_command():
+            return [opt.opts[0], value.text()]
+        return [param, value], to_command
+
 @cli.command()
-def func():
-    print("func")
+@click.option("--myint", type=MyInt)
+def func(**argvs):
+    print("==== running func")
+    for k, v in argvs.items():
+        print(k, v, type(v))
 
 # @gui_option
 @click.command()
@@ -45,5 +62,5 @@ def option_gui():
 if __name__ == "__main__":
     # gui_it(example_cmd, run_exit=True)
     # option_gui()
-    # gui_it(cli, run_exit=False)
-    cli()
+    gui_it(cli, run_exit=False)
+    # cli()
