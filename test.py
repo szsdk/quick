@@ -32,25 +32,38 @@ def example_cmd(**argvs):
 def sync(hello):
     print('Synching', hello)
 
-class MyInt(int):
+class MyInt(click.types.ParamType):
+    name = "my int"
+
+    def convert(self, value, param, ctx):
+        try:
+            return int(value)
+        except (ValueError, UnicodeError):
+            self.fail('%s is not a valid integer' % value, param, ctx)
+
     @staticmethod
     def to_widget(opt):
         param = QLabel(opt.name)
         value = QLineEdit()
-        value.setValidator(QIntValidator())
+        value = QSlider(Qt.Horizontal)
+        value.setMinimum(10)
+        value.setMaximum(30)
+        value.setValue(20)
+        value.setTickPosition(QSlider.TicksBelow)
+        value.setTickInterval(5)
 
         def to_command():
-            return [opt.opts[0], value.text()]
+            return [opt.opts[0], str(value.value())]
         return [param, value], to_command
 
 @cli.command()
-@click.option("--myint", type=MyInt)
+@click.option("--myint", type=MyInt())
 def func(**argvs):
     print("==== running func")
     for k, v in argvs.items():
         print(k, v, type(v))
 
-# @gui_option
+@gui_option
 @click.command()
 def option_gui():
     """run with
@@ -61,6 +74,6 @@ def option_gui():
 
 if __name__ == "__main__":
     # gui_it(example_cmd, run_exit=True)
-    # option_gui()
-    gui_it(cli, run_exit=False)
+    option_gui()
+    # gui_it(cli, run_exit=False)
     # cli()

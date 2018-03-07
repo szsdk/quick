@@ -133,10 +133,13 @@ def text_arguement(opt):
 
 
 def opt_to_widget(opt):
-    print(opt.type)
+    #customed widget
     if type(opt.type) == click.types.FuncParamType:
         if hasattr(opt.type.func, 'to_widget'):
             return opt.type.func.to_widget(opt)
+    elif hasattr(opt.type, 'to_widget'):
+            return opt.type.to_widget(opt)
+
     if type(opt) == click.core.Argument:
         if opt.nargs > 1 or opt.nargs == -1:
             return multi_text_arguement(opt)
