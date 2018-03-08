@@ -72,6 +72,42 @@ class GFloatLineEditor(GStringLineEditor):
         value.setValidator(QDoubleValidator())
         return [param, value], to_command
 
+class GIntRangeSlider(click.types.IntRange):
+    def to_widget(self, opt):
+        value = QLineEdit()
+        value = QSlider(Qt.Horizontal)
+        value.setMinimum(self.min)
+        value.setMaximum(self.max)
+        value.setValue((self.min+self.max)//2)
+        value.setTickPosition(QSlider.TicksBelow)
+        # value.setTickInterval(5)
+
+        def to_command():
+            return [opt.opts[0], str(value.value())]
+        return [generate_label(opt), value], to_command
+
+class GIntRangeSlider(click.types.IntRange):
+    def to_widget(self, opt):
+        value = QSlider(Qt.Horizontal)
+        value.setMinimum(self.min)
+        value.setMaximum(self.max)
+        value.setValue((self.min+self.max)//2)
+        value.setTickPosition(QSlider.TicksBelow)
+        # value.setTickInterval(5)
+
+        def to_command():
+            return [opt.opts[0], str(value.value())]
+        return [generate_label(opt), value], to_command
+
+class GIntRangeLineEditor(click.types.IntRange):
+    def to_widget(self, opt):
+        value = QLineEdit()
+        # TODO: set validator
+
+        def to_command():
+            return [opt.opts[0], value.text()]
+        return [generate_label(opt), value], to_command
+
 def bool_flag_option(opt):
     checkbox = QCheckBox(opt.name)
     if opt.default:
@@ -164,6 +200,8 @@ def opt_to_widget(opt):
             return GIntLineEditor.to_widget(opt)
         elif isinstance(opt.type, click.types.FloatParamType):
             return GFloatLineEditor.to_widget(opt)
+        elif isinstance(opt.type, click.types.IntRange):
+            return GIntRangeSlider(opt.type.min, opt.type.max).to_widget(opt)
         else:
             return GStringLineEditor.to_widget(opt)
 
@@ -267,7 +305,13 @@ class App(QWidget):
     @pyqtSlot()
     def run_cmd(self):
         print(sys.argv)
-        self.func(standalone_mode=self.run_exit)
+        try:
+            self.func(standalone_mode=self.run_exit)
+        except click.exceptions.BadParameter as bpe:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Warning)
+            msg.setText(bpe.format_message())
+            msg.exec_()
 
 
 def gui_it(click_func, run_exit=False):

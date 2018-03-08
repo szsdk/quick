@@ -56,7 +56,7 @@ class MyInt(click.types.ParamType):
         return [guick.generate_label(opt), value], to_command
 
 @cli.command()
-@click.option("--myint", type=MyInt(), help='my int')
+@click.option("--myint", type=guick.GIntRangeLineEditor(10, 20), help='my int')
 def func(**argvs):
     print("==== running func")
     for k, v in argvs.items():
