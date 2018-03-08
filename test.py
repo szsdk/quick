@@ -1,10 +1,10 @@
-import guick
+import quick
 import click
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
-# @guick.gui_option
+# @quick.gui_option
 @click.group()
 @click.option('--debug/--no-debug', default=False)
 def cli(debug):
@@ -53,16 +53,16 @@ class MyInt(click.types.ParamType):
 
         def to_command():
             return [opt.opts[0], str(value.value())]
-        return [guick.generate_label(opt), value], to_command
+        return [quick.generate_label(opt), value], to_command
 
 @cli.command()
-@click.option("--myint", type=guick.GIntRangeLineEditor(10, 20), help='my int')
+@click.option("--myint", type=quick.GIntRangeLineEditor(10, 20), help='my int')
 def func(**argvs):
     print("==== running func")
     for k, v in argvs.items():
         print(k, v, type(v))
 
-@guick.gui_option
+@quick.gui_option
 @click.command()
 def option_gui():
     """run with
@@ -72,7 +72,7 @@ def option_gui():
 
 
 if __name__ == "__main__":
-    # guick.gui_it(example_cmd, run_exit=True)
+    # quick.gui_it(example_cmd, run_exit=True)
     # option_gui()
-    guick.gui_it(cli, run_exit=False)
+    quick.gui_it(cli, run_exit=False)
     # cli()

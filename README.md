@@ -1,4 +1,4 @@
-# GUICK
+# QUICK
 
 This project is inspired by [Gooey](https://github.com/chriskiehl/Gooey),
 which generate GUI for a classical python `argparse`-based command line
@@ -20,10 +20,10 @@ simple function `gui_it`. The usage is wrapping the command function
 this.
 
 ```python
-from guick import gui_it
+from quick import gui_it
 import click
 
-from guick import gui_it
+from quick import gui_it
 import click
 
 @click.command()
@@ -51,7 +51,7 @@ A common case is not changing all your command into a gui version, but just
 add a `--gui` option to it. Then you can do this.
 
 ```python
-from guick import gui_option
+from quick import gui_option
 import click
 
 @gui_option
