@@ -1,57 +1,50 @@
 import sys
-# from PyQt5 import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
-### For high dpi screen
-# from PyQt5 import QtCore
-# if hasattr(QtCore.Qt, 'AA_EnableHighDpiScaling'):
-    # QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
 
-# if hasattr(QtCore.Qt, 'AA_UseHighDpiPixmaps'):
-    # QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
+from PyQt5 import QtGui
+from PyQt5 import QtWidgets
+from PyQt5 import QtCore
 
 import click
 
-class GListView(QListView):
+class GListView(QtWidgets.QListView):
     def __init__(self, nargs):
         # TODO: nargs should include type information.
         super().__init__()
         self.nargs = nargs
-        self.model = QStandardItemModel(self)
+        self.model = QtGui.QStandardItemModel(self)
         if nargs > 0:
             for _ in range(nargs):
-                item = QStandardItem()
+                item = QtGui.QStandardItem()
                 self.model.appendRow(item)
         else:
-            self.model.appendRow(QStandardItem())
+            self.model.appendRow(QtGui.QStandardItem())
         self.setModel(self.model)
-        self.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
 
     def keyPressEvent(self, e):
         if self.nargs == -1:
-            if e.key() == Qt.Key_Delete:
+            if e.key() == QtCore.Qt.Key_Delete:
                 for i in self.selectedIndexes():
                     self.model.removeRow(i.row())
-            elif e.key() == Qt.Key_T:
+            elif e.key() == QtCore.Qt.Key_T:
                 for i in self.selectedIndexes():
                     self.model.insertRow(i.row())
         super(GListView, self).keyPressEvent(e)
 
 
 def generate_label(opt):
-    param = QLabel(opt.name)
+    param = QtWidgets.QLabel(opt.name)
     param.setToolTip(opt.help)
     return param
 
 class GStringLineEditor(click.types.StringParamType):
     @staticmethod
     def to_widget(opt):
-        value = QLineEdit()
+        value = QtWidgets.QLineEdit()
         if opt.default:
             value.setText(str(opt.default))
         if opt.hide_input:
-            value.setEchoMode(QLineEdit.Password)
+            value.setEchoMode(QtWidgets.QLineEdit.Password)
 
         def to_command():
             return [opt.opts[0], value.text()]
@@ -62,25 +55,24 @@ class GIntLineEditor(GStringLineEditor):
     @staticmethod
     def to_widget(opt):
         [param, value], to_command = GStringLineEditor.to_widget(opt)
-        value.setValidator(QIntValidator())
+        value.setValidator(QtGui.QIntValidator())
         return [param, value], to_command
 
 class GFloatLineEditor(GStringLineEditor):
     @staticmethod
     def to_widget(opt):
         [param, value], to_command = GStringLineEditor.to_widget(opt)
-        value.setValidator(QDoubleValidator())
+        value.setValidator(QtGui.QDoubleValidator())
         return [param, value], to_command
 
 class GIntRangeSlider(click.types.IntRange):
     def to_widget(self, opt):
-        value = QLineEdit()
-        value = QSlider(Qt.Horizontal)
+        value = QtWidgets.QLineEdit()
+        value = QtWidgets.QSlider(Qt.Horizontal)
         value.setMinimum(self.min)
         value.setMaximum(self.max)
         value.setValue((self.min+self.max)//2)
-        value.setTickPosition(QSlider.TicksBelow)
-        # value.setTickInterval(5)
+        value.setTickPosition(QtWidgets.QSlider.TicksBelow)
 
         def to_command():
             return [opt.opts[0], str(value.value())]
@@ -88,11 +80,11 @@ class GIntRangeSlider(click.types.IntRange):
 
 class GIntRangeSlider(click.types.IntRange):
     def to_widget(self, opt):
-        value = QSlider(Qt.Horizontal)
+        value = QtWidgets.QSlider(Qt.Horizontal)
         value.setMinimum(self.min)
         value.setMaximum(self.max)
         value.setValue((self.min+self.max)//2)
-        value.setTickPosition(QSlider.TicksBelow)
+        value.setTickPosition(QtWidgets.QSlider.TicksBelow)
         # value.setTickInterval(5)
 
         def to_command():
@@ -101,7 +93,7 @@ class GIntRangeSlider(click.types.IntRange):
 
 class GIntRangeLineEditor(click.types.IntRange):
     def to_widget(self, opt):
-        value = QLineEdit()
+        value = QtWidgets.QLineEdit()
         # TODO: set validator
 
         def to_command():
@@ -109,7 +101,7 @@ class GIntRangeLineEditor(click.types.IntRange):
         return [generate_label(opt), value], to_command
 
 def bool_flag_option(opt):
-    checkbox = QCheckBox(opt.name)
+    checkbox = QtWidgets.QCheckBox(opt.name)
     if opt.default:
         checkbox.setCheckState(2)
     # set tip
@@ -125,7 +117,7 @@ def bool_flag_option(opt):
 class GChoiceComboBox(click.types.Choice):
     @staticmethod
     def to_widget(opt):
-        cb = QComboBox()
+        cb = QtWidgets.QComboBox()
         cb.addItems(opt.type.choices)
 
         def to_command():
@@ -133,7 +125,7 @@ class GChoiceComboBox(click.types.Choice):
         return [generate_label(opt), cb], to_command
 
 def count_option(opt):
-    sb = QSpinBox()
+    sb = QtWidgets.QSpinBox()
 
     def to_command():
         return [opt.opts[0]] * int(sb.text())
@@ -156,18 +148,18 @@ def multi_text_arguement(opt):
         for idx in range(value.model.rowCount()):
             _.append(value.model.item(idx).text())
         return _
-    return [QLabel(opt.name), value], to_command
+    return [QtWidgets.QLabel(opt.name), value], to_command
 
 def text_arguement(opt):
-    param = QLabel(opt.name)
-    value = QLineEdit()
+    param = QtWidgets.QLabel(opt.name)
+    value = QtWidgets.QLineEdit()
     if opt.default:
         value.setText(str(opt.default))
     # add validator
     if isinstance(opt.type, click.types.IntParamType) and opt.nargs == 1:
         value.setValidator(QIntValidator())
     elif isinstance(opt.type, click.types.FloatParamType) and opt.nargs == 1:
-        value.setValidator(QDoubleValidator())
+        value.setValidator(QtGui.QDoubleValidator())
 
     def to_command():
         return [value.text()]
@@ -213,7 +205,7 @@ def layout_append_opts(layout, opts):
         widget, value_func = opt_to_widget(para)
         params_func.append(value_func)
         for idx, w in enumerate(widget):
-            if isinstance(w, QLayout):
+            if isinstance(w, QtWidgets.QLayout):
                 layout.addLayout(w, i, idx)
             else:
                 layout.addWidget(w, i, idx)
@@ -231,7 +223,7 @@ class OptionWidgetSet(object):
     def __init__(self, func, run_exit):
         self.func = func
         self.run_exit = run_exit
-        self.grid = QGridLayout()
+        self.grid = QtWidgets.QGridLayout()
         self.grid.setSpacing(10)
         self.grid, self.params_func =\
             layout_append_opts(self.grid, self.func.params)
@@ -243,7 +235,7 @@ class OptionWidgetSet(object):
         # self.func(standalone_mode=self.run_exit)
 
 
-class App(QWidget):
+class App(QtWidgets.QWidget):
     def __init__(self, func, run_exit):
         super().__init__()
         self.title = func.name
@@ -261,7 +253,7 @@ class App(QWidget):
 
         self.group_opt_set = OptionWidgetSet(self.func, self.run_exit)
         if not isinstance(self.func, click.core.Group):
-            button = QPushButton('run')
+            button = QtWidgets.QPushButton('run')
             self.group_opt_set.grid.addWidget(
                 button, self.group_opt_set.grid.rowCount()+1, 0
             )
@@ -270,11 +262,11 @@ class App(QWidget):
             button.clicked.connect(self.group_opt_set.add_sysargv)
             button.clicked.connect(self.run_cmd)
         else:
-            self.tabs = QTabWidget()
+            self.tabs = QtWidgets.QTabWidget()
             self.tab_widget_list = []
             self.cmd_opt_list= []
             for cmd, f in self.func.commands.items():
-                tab = QWidget()
+                tab = QtWidgets.QWidget()
                 opt_set = OptionWidgetSet(f, run_exit)
                 self.cmd_opt_list.append(opt_set)
                 tab.layout = self.cmd_opt_list[-1].grid
@@ -283,7 +275,7 @@ class App(QWidget):
                 tab.setLayout(tab.layout)
                 self.tab_widget_list.append(tab)
 
-                button = QPushButton('run')
+                button = QtWidgets.QPushButton('run')
                 opt_set.grid.addWidget(button, opt_set.grid.rowCount()+1, 0)
 
                 # connect button to function on_click
@@ -298,30 +290,30 @@ class App(QWidget):
 
         self.show()
 
-    @pyqtSlot()
+    @QtCore.pyqtSlot()
     def clean_sysargv(self):
         sys.argv = []
 
-    @pyqtSlot()
+    @QtCore.pyqtSlot()
     def run_cmd(self):
         print(sys.argv)
         try:
             self.func(standalone_mode=self.run_exit)
         except click.exceptions.BadParameter as bpe:
-            msg = QMessageBox()
-            msg.setIcon(QMessageBox.Warning)
+            # warning message
+            msg = QtWidgets.QMessageBox()
+            msg.setIcon(QtWidgets.QMessageBox.Warning)
             msg.setText(bpe.format_message())
             msg.exec_()
 
 
-def gui_it(click_func, run_exit=False):
-    app = QApplication(sys.argv)
+def gui_it(click_func, run_exit:bool=False)->None:
+    app = QtWidgets.QApplication(sys.argv)
     ex = App(click_func, run_exit)
-    # if exit:
     sys.exit(app.exec_())
 
 
-def gui_option(f):
+def gui_option(f:click.core.BaseCommand)->click.core.BaseCommand:
     """decorator for adding '--gui' option to command"""
     def run_gui_it(ctx, param, value):
         if not value or ctx.resilient_parsing:

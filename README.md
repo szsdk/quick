@@ -23,9 +23,6 @@ this.
 from quick import gui_it
 import click
 
-from quick import gui_it
-import click
-
 @click.command()
 @click.option("--hello", default="world", help="say hello")
 @click.option("--add", type=int, help="input an integer number",\
