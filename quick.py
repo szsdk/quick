@@ -16,13 +16,17 @@ class GListView(QtWidgets.QListView):
         self.delegate = GEditDelegate(self)
         self.setItemDelegate(self.delegate)
         self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.setToolTip(
+                "'a': add a new item blow the selected one\n"
+                "'d': delete the selected item"
+        )
 
     def keyPressEvent(self, e):
         if self.nargs == -1:
-            if e.key() == QtCore.Qt.Key_T:
+            if e.key() == QtCore.Qt.Key_A:
                 for i in self.selectedIndexes():
                     self.model.insertRow(i.row()+1)
-            if e.key() == QtCore.Qt.Key_Delete:
+            if e.key() == QtCore.Qt.Key_D:
                 si = self.selectedIndexes()
                 if self.model.rowCount() > 1:
                     for i in si:
@@ -142,7 +146,7 @@ class GIntRangeSlider(click.types.IntRange):
 
 class GIntRangeSlider(click.types.IntRange):
     def to_widget(self, opt):
-        value = QtWidgets.QSlider(Qt.Horizontal)
+        value = QtWidgets.QSlider(QtCore.Qt.Horizontal)
         value.setMinimum(self.min)
         value.setMaximum(self.max)
         value.setValue((self.min+self.max)//2)
@@ -276,12 +280,12 @@ def opt_to_widget(opt):
             return count_option(opt)
         elif isinstance(opt.type, click.types.Choice):
             return GChoiceComboBox.to_widget(opt)
+        elif isinstance(opt.type, click.types.IntRange):
+            return GIntRangeSlider(opt.type.min, opt.type.max).to_widget(opt)
         elif isinstance(opt.type, click.types.IntParamType):
             return GIntLineEditor.to_widget(opt)
         elif isinstance(opt.type, click.types.FloatParamType):
             return GFloatLineEditor.to_widget(opt)
-        elif isinstance(opt.type, click.types.IntRange):
-            return GIntRangeSlider(opt.type.min, opt.type.max).to_widget(opt)
         else:
             return GStringLineEditor.to_widget(opt)
 
