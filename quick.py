@@ -9,28 +9,93 @@ import click
 class GListView(QtWidgets.QListView):
     def __init__(self, nargs):
         # TODO: nargs should include type information.
-        super().__init__()
+        super(GListView, self).__init__()
         self.nargs = nargs
-        self.model = QtGui.QStandardItemModel(self)
-        if nargs > 0:
-            for _ in range(nargs):
-                item = QtGui.QStandardItem()
-                self.model.appendRow(item)
-        else:
-            self.model.appendRow(QtGui.QStandardItem())
+        self.model = GItemModel(1, parent=self, opt_type=click.STRING)
         self.setModel(self.model)
+        self.delegate = GEditDelegate(self)
+        self.setItemDelegate(self.delegate)
         self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
 
     def keyPressEvent(self, e):
         if self.nargs == -1:
+            if e.key() == QtCore.Qt.Key_T:
+                for i in self.selectedIndexes():
+                    self.model.insertRow(i.row()+1)
             if e.key() == QtCore.Qt.Key_Delete:
-                for i in self.selectedIndexes():
-                    self.model.removeRow(i.row())
-            elif e.key() == QtCore.Qt.Key_T:
-                for i in self.selectedIndexes():
-                    self.model.insertRow(i.row())
+                si = self.selectedIndexes()
+                if self.model.rowCount() > 1:
+                    for i in si:
+                        self.model.removeRow(i.row())
         super(GListView, self).keyPressEvent(e)
 
+
+class GItemModel(QtGui.QStandardItemModel):
+    def __init__(self, n, parent=None, opt_type=click.STRING, default=None):
+        super(QtGui.QStandardItemModel, self).__init__(n, 1, parent)
+        self.type = opt_type
+        for row in range(n):
+            index = self.index(row, 0, QtCore.QModelIndex())
+            if default is None or default == "":
+                self.setData(index, QtGui.QBrush(QtGui.QColor(100,100,100)),
+                        role=QtCore.Qt.ForegroundRole)
+            else:
+                self.setData(index, default[row])
+
+    def insertRow(self, idx):
+        super(GItemModel, self).insertRow(idx)
+        index = self.index(idx, 0, QtCore.QModelIndex())
+        print(index.row())
+        self.setData(index, QtGui.QBrush(QtGui.QColor(100,100,100)),  role=QtCore.Qt.ForegroundRole)
+
+
+    def data(self, index, role=QtCore.Qt.DisplayRole):
+
+        if role == QtCore.Qt.DisplayRole:
+            dstr = QtGui.QStandardItemModel.data(self, index, role)
+            if dstr == "" or dstr is None:
+                if isinstance(self.type, click.types.Tuple):
+                    row = index.row()
+                    if 0 <= row < len(self.type.types):
+                        tp = self.type.types[row]
+                        dstr = tp.name
+                else:
+                    dstr = self.type.name
+                return dstr
+
+
+        if role == QtCore.Qt.UserRole:
+            tp = click.STRING
+            if isinstance(self.type, click.types.Tuple):
+                row = index.row()
+                if 0 <= row < len(self.type.types):
+                    tp = self.type.types[row]
+            elif isinstance(self.type, click.types.ParamType):
+                tp = self.type
+            return tp
+
+        return QtGui.QStandardItemModel.data(self, index, role)
+
+class GEditDelegate(QtWidgets.QStyledItemDelegate):
+    def createEditor(self, parent, option, index):
+        led = QtWidgets.QLineEdit(parent)
+        tp = index.data(role=QtCore.Qt.UserRole)
+        led.setPlaceholderText(tp.name)
+        led.setValidator(select_type_validator(tp))
+        return led
+
+    def setEditorData(self, editor, index):
+        item_var = index.data(role=QtCore.Qt.EditRole)
+        if item_var is not None:
+            editor.setText(str(item_var))
+
+    def setModelData(self, editor, model, index):
+        data_str = editor.text()
+        if data_str == "" or data_str is None:
+            model.setData(index, QtGui.QBrush(QtGui.QColor(100,100,100)),  role=QtCore.Qt.ForegroundRole)
+        else:
+            model.setData(index, QtGui.QBrush(QtGui.QColor('black')),  role=QtCore.Qt.ForegroundRole)
+        QtWidgets.QStyledItemDelegate.setModelData(self, editor, model, index)
 
 def generate_label(opt):
     param = QtWidgets.QLabel(opt.name)
@@ -38,35 +103,32 @@ def generate_label(opt):
     return param
 
 class GStringLineEditor(click.types.StringParamType):
-    @staticmethod
-    def to_widget(opt):
+    def to_widget(self, validator=None):
         value = QtWidgets.QLineEdit()
-        if opt.default:
-            value.setText(str(opt.default))
-        if opt.hide_input:
+        value.setPlaceholderText(self.type.name)
+        if self.default:
+            value.setText(str(self.default))
+        if self.hide_input:
             value.setEchoMode(QtWidgets.QLineEdit.Password)
+        value.setValidator(validator)
 
         def to_command():
-            return [opt.opts[0], value.text()]
-        return [generate_label(opt), value], to_command
+            return [self.opts[0], value.text()]
+        return [generate_label(self), value], to_command
 
 
 class GIntLineEditor(GStringLineEditor):
-    @staticmethod
-    def to_widget(opt):
-        [param, value], to_command = GStringLineEditor.to_widget(opt)
-        value.setValidator(QtGui.QIntValidator())
-        return [param, value], to_command
+    def to_widget(self):
+        return GStringLineEditor.to_widget(self,
+                validator=QtGui.QIntValidator())
 
 class GFloatLineEditor(GStringLineEditor):
-    @staticmethod
-    def to_widget(opt):
-        [param, value], to_command = GStringLineEditor.to_widget(opt)
-        value.setValidator(QtGui.QDoubleValidator())
-        return [param, value], to_command
+    def to_widget(self):
+        return GStringLineEditor.to_widget(self,
+                validator=QtGui.QDoubleValidator())
 
 class GIntRangeSlider(click.types.IntRange):
-    def to_widget(self, opt):
+    def to_widget(self):
         value = QtWidgets.QLineEdit()
         value = QtWidgets.QSlider(Qt.Horizontal)
         value.setMinimum(self.min)
@@ -75,8 +137,8 @@ class GIntRangeSlider(click.types.IntRange):
         value.setTickPosition(QtWidgets.QSlider.TicksBelow)
 
         def to_command():
-            return [opt.opts[0], str(value.value())]
-        return [generate_label(opt), value], to_command
+            return [self.opts[0], str(value.value())]
+        return [generate_label(self), value], to_command
 
 class GIntRangeSlider(click.types.IntRange):
     def to_widget(self, opt):
@@ -115,7 +177,6 @@ def bool_flag_option(opt):
     return [checkbox], to_command
 
 class GChoiceComboBox(click.types.Choice):
-    @staticmethod
     def to_widget(opt):
         cb = QtWidgets.QComboBox()
         cb.addItems(opt.type.choices)
@@ -130,6 +191,21 @@ def count_option(opt):
     def to_command():
         return [opt.opts[0]] * int(sb.text())
     return [generate_label(opt), sb], to_command
+
+class GTupleGListView(click.Tuple):
+    def to_widget(self):
+        model = GItemModel(self.nargs, opt_type=self.type, default=self.default)
+        view = QtWidgets.QListView()
+        view.setModel(model)
+        delegate = GEditDelegate(view)
+        view.setItemDelegate(delegate)
+
+        def to_command():
+            _ = [self.opts[0]]
+            for idx in range(model.rowCount()):
+                _.append(model.item(idx).text())
+            return _
+        return [generate_label(self), view], to_command
 
 
 def multi_text_option(opt):
@@ -150,16 +226,26 @@ def multi_text_arguement(opt):
         return _
     return [QtWidgets.QLabel(opt.name), value], to_command
 
+def select_type_validator(tp: click.types.ParamType)-> QtGui.QValidator:
+    """ select the right validator for `tp`"""
+    if isinstance(tp, click.types.IntParamType):
+        return QtGui.QIntValidator()
+    elif isinstance(tp, click.types.FloatParamType):
+        return QtGui.QDoubleValidator()
+    return None
+
+
+def select_opt_validator(opt):
+    """ select the right validator for `opt`"""
+    return select_type_validator(opt.type) 
+
 def text_arguement(opt):
     param = QtWidgets.QLabel(opt.name)
     value = QtWidgets.QLineEdit()
     if opt.default:
         value.setText(str(opt.default))
     # add validator
-    if isinstance(opt.type, click.types.IntParamType) and opt.nargs == 1:
-        value.setValidator(QIntValidator())
-    elif isinstance(opt.type, click.types.FloatParamType) and opt.nargs == 1:
-        value.setValidator(QtGui.QDoubleValidator())
+    value.setValidator(select_opt_validator(opt))
 
     def to_command():
         return [value.text()]
@@ -180,7 +266,9 @@ def opt_to_widget(opt):
         else:
             return text_arguement(opt)
     else:
-        if opt.nargs > 1 or opt.nargs == -1:
+        if opt.nargs > 1 :
+            return GTupleGListView.to_widget(opt)
+        elif opt.nargs == -1:
             return multi_text_option(opt)
         elif opt.is_bool_flag:
             return bool_flag_option(opt)

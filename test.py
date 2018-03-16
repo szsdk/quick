@@ -18,7 +18,9 @@ def cli(debug):
               hide_input=True)
 @click.option("--times", type=float, default=2.3, help="input a double number")
 @click.option("--minus", type=float, help="input two numbers", nargs=2)
+@click.option("--tuple", type=(int, str), default=(23, 'quick'), help="input (int, str)", nargs=2)
 @click.option("--flag", is_flag=True)
+@click.option("--int_range", type=click.types.IntRange(10,20))
 @click.option('--shout/--no-shout', default=True)
 @click.option('--language', type=click.Choice(['c', 'c++']))
 @click.option('-v', '--verbose', count=True)
@@ -41,8 +43,8 @@ class MyInt(click.types.ParamType):
         except (ValueError, UnicodeError):
             self.fail('%s is not a valid integer' % value, param, ctx)
 
-    @staticmethod
-    def to_widget(opt):
+    # @staticmethod
+    def to_widget(self):
         value = QLineEdit()
         value = QSlider(Qt.Horizontal)
         value.setMinimum(10)
@@ -52,8 +54,8 @@ class MyInt(click.types.ParamType):
         value.setTickInterval(5)
 
         def to_command():
-            return [opt.opts[0], str(value.value())]
-        return [quick.generate_label(opt), value], to_command
+            return [self.selfs[0], str(value.value())]
+        return [quick.generate_label(self), value], to_command
 
 @cli.command()
 @click.option("--myint", type=quick.GIntRangeLineEditor(10, 20), help='my int')
