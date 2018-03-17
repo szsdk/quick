@@ -1,4 +1,5 @@
 import sys
+import warnings
 
 from PyQt5 import QtGui
 from PyQt5 import QtWidgets
@@ -82,8 +83,11 @@ class GItemModel(QtGui.QStandardItemModel):
 
 class GEditDelegate(QtWidgets.QStyledItemDelegate):
     def createEditor(self, parent, option, index):
-        led = QtWidgets.QLineEdit(parent)
         tp = index.data(role=QtCore.Qt.UserRole)
+        if isinstance(tp, click.Path):
+            led = GLineEdit_path.from_option(tp, parent)
+        else:
+            led = QtWidgets.QLineEdit(parent)
         led.setPlaceholderText(tp.name)
         led.setValidator(select_type_validator(tp))
         return led
@@ -133,36 +137,65 @@ class GFloatLineEditor(GStringLineEditor):
                 validator=QtGui.QDoubleValidator())
 
 class GFileDialog(QtWidgets.QFileDialog):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, exists = False, file_okay = True, dir_okay= True,  **kwargs):
         super(GFileDialog, self).__init__(*args, **kwargs)
         self.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
         self.setLabelText(QtWidgets.QFileDialog.Accept, "Select")
-        # self.setFileMode(QFileDialog.Directory)
-        # self.setLabelText(QFileDialog.LookIn, "Select")
-        # self.setFileMode(QFileDialog.AnyFile)
-        # self.setFileMode(QFileDialog.ExistingFiles)
+        if (exists, file_okay, dir_okay) == (True, True, False):
+            self.setFileMode(QtWidgets.QFileDialog.ExistingFile)
+        elif (exists, file_okay, dir_okay) == (False, True, False):
+            self.setFileMode(QtWidgets.QFileDialog.AnyFile)
+        elif (exists, file_okay, dir_okay) == (True, False, True):
+            self.setFileMode(QtWidgets.QFileDialog.Directory)
+        elif (exists, file_okay, dir_okay) == (False, False, True):
+            self.setFileMode(QtWidgets.QFileDialog.Directory)
+        elif exists == True:
+            self.setFileMode(QtWidgets.QFileDialog.ExistingFile)
+            self.accept = self.accept_all
+        elif exists == False:
+            self.setFileMode(QtWidgets.QFileDialog.AnyFile)
+            self.accept = self.accept_all
+        # self.accept = self.accept_all
 
-    def accept(self):
-        # super(FileDialog, self).accept()
+
+    def accept_all(self):
+        # super(GFileDialog, self).accept()
         super(GFileDialog, self).done(QtWidgets.QFileDialog.Accepted)
 
 class GLineEdit_path(QtWidgets.QLineEdit):
-    def __init__(self):
-        super(GLineEdit_path, self).__init__()
+    def __init__(self, parent=None, exists = False, file_okay = True, dir_okay= True):
+        super(GLineEdit_path, self).__init__(parent)
         self.action = self.addAction(
                 self.style().standardIcon(QtWidgets.QStyle.SP_DirIcon),
                 QtWidgets.QLineEdit.TrailingPosition
                 )
-        self.fdlg = GFileDialog(self, "Select File Dialog", "./", "*.*")
+        self.fdlg = GFileDialog(self, "Select File Dialog", "./", "*",
+                                exists = exists,
+                                file_okay = file_okay,
+                                dir_okay= dir_okay)
         self.action.triggered.connect(self.run_dialog)
 
     def run_dialog(self):
         if self.fdlg.exec() == QtWidgets.QFileDialog.Accepted:
             self.setText(self.fdlg.selectedFiles()[0])
 
+    @staticmethod
+    def from_option(opt, parent=None):
+        print(type(opt))
+        return GLineEdit_path(
+            parent=parent,
+            exists=opt.exists,
+            file_okay=opt.file_okay,
+            dir_okay=opt.dir_okay
+        )
+
 class GPathLindEidt(click.types.Path):
     def to_widget(self):
-        value = GLineEdit_path()
+        value = GLineEdit_path(
+            exists=self.type.exists,
+            file_okay=self.type.file_okay,
+            dir_okay=self.type.dir_okay
+        )
         value.setPlaceholderText(self.type.name)
         if self.default:
             value.setText(str(self.default))
@@ -283,7 +316,7 @@ def select_type_validator(tp: click.types.ParamType)-> QtGui.QValidator:
 
 def select_opt_validator(opt):
     """ select the right validator for `opt`"""
-    return select_type_validator(opt.type) 
+    return select_type_validator(opt.type)
 
 def text_arguement(opt):
     param = QtWidgets.QLabel(opt.name)
@@ -314,8 +347,8 @@ def opt_to_widget(opt):
     else:
         if opt.nargs > 1 :
             return GTupleGListView.to_widget(opt)
-        elif opt.nargs == -1:
-            return multi_text_option(opt)
+        # elif opt.nargs == -1:
+            # return multi_text_option(opt)
         elif opt.is_bool_flag:
             return bool_flag_option(opt)
         elif opt.count:
@@ -323,6 +356,7 @@ def opt_to_widget(opt):
         elif isinstance(opt.type, click.types.Choice):
             return GChoiceComboBox.to_widget(opt)
         elif isinstance(opt.type, click.types.Path):
+            print(opt.type.__dict__)
             return GPathLindEidt.to_widget(opt)
         elif isinstance(opt.type, click.types.IntRange):
             return GIntRangeSlider(opt.type.min, opt.type.max).to_widget(opt)

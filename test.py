@@ -59,9 +59,17 @@ class MyInt(click.types.ParamType):
 
 @cli.command()
 @click.option("--myint", type=quick.GIntRangeLineEditor(10, 20), help='my int')
-@click.option("--path", type=click.Path())
-def func(**argvs):
-    print("==== running func")
+def myint(**argvs):
+    for k, v in argvs.items():
+        print(k, v, type(v))
+
+@cli.command()
+@click.argument("default", type=click.Path(), nargs=-1)
+# @click.option("--path", type=click.Path(), help="default path")
+@click.option("--file_path", type=click.Path(file_okay=True, dir_okay=False), help="select a file")
+@click.option("--warning_path", type=click.Path(file_okay=False, dir_okay=False), help="select a file")
+@click.option("--folders", type=click.Path(file_okay=False, dir_okay=True), nargs=3)
+def pathtest(**argvs):
     for k, v in argvs.items():
         print(k, v, type(v))
 
