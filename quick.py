@@ -106,6 +106,7 @@ def generate_label(opt):
     param.setToolTip(opt.help)
     return param
 
+
 class GStringLineEditor(click.types.StringParamType):
     def to_widget(self, validator=None):
         value = QtWidgets.QLineEdit()
@@ -130,6 +131,47 @@ class GFloatLineEditor(GStringLineEditor):
     def to_widget(self):
         return GStringLineEditor.to_widget(self,
                 validator=QtGui.QDoubleValidator())
+
+class GFileDialog(QtWidgets.QFileDialog):
+    def __init__(self, *args, **kwargs):
+        super(GFileDialog, self).__init__(*args, **kwargs)
+        self.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
+        self.setLabelText(QtWidgets.QFileDialog.Accept, "Select")
+        # self.setFileMode(QFileDialog.Directory)
+        # self.setLabelText(QFileDialog.LookIn, "Select")
+        # self.setFileMode(QFileDialog.AnyFile)
+        # self.setFileMode(QFileDialog.ExistingFiles)
+
+    def accept(self):
+        # super(FileDialog, self).accept()
+        super(GFileDialog, self).done(QtWidgets.QFileDialog.Accepted)
+
+class GLineEdit_path(QtWidgets.QLineEdit):
+    def __init__(self):
+        super(GLineEdit_path, self).__init__()
+        self.action = self.addAction(
+                self.style().standardIcon(QtWidgets.QStyle.SP_DirIcon),
+                QtWidgets.QLineEdit.TrailingPosition
+                )
+        self.fdlg = GFileDialog(self, "Select File Dialog", "./", "*.*")
+        self.action.triggered.connect(self.run_dialog)
+
+    def run_dialog(self):
+        if self.fdlg.exec() == QtWidgets.QFileDialog.Accepted:
+            self.setText(self.fdlg.selectedFiles()[0])
+
+class GPathLindEidt(click.types.Path):
+    def to_widget(self):
+        value = GLineEdit_path()
+        value.setPlaceholderText(self.type.name)
+        if self.default:
+            value.setText(str(self.default))
+
+        def to_command():
+            return [self.opts[0], value.text()]
+        return [generate_label(self), value], to_command
+
+
 
 class GIntRangeSlider(click.types.IntRange):
     def to_widget(self):
@@ -280,6 +322,8 @@ def opt_to_widget(opt):
             return count_option(opt)
         elif isinstance(opt.type, click.types.Choice):
             return GChoiceComboBox.to_widget(opt)
+        elif isinstance(opt.type, click.types.Path):
+            return GPathLindEidt.to_widget(opt)
         elif isinstance(opt.type, click.types.IntRange):
             return GIntRangeSlider(opt.type.min, opt.type.max).to_widget(opt)
         elif isinstance(opt.type, click.types.IntParamType):

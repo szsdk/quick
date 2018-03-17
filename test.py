@@ -59,6 +59,7 @@ class MyInt(click.types.ParamType):
 
 @cli.command()
 @click.option("--myint", type=quick.GIntRangeLineEditor(10, 20), help='my int')
+@click.option("--path", type=click.Path())
 def func(**argvs):
     print("==== running func")
     for k, v in argvs.items():
