@@ -6,12 +6,12 @@ from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 
 import click
+import math
 
 _GTypeRole = QtCore.Qt.UserRole
 
 class GListView(QtWidgets.QListView):
     def __init__(self, opt):
-        # TODO: nargs should include type information.
         super(GListView, self).__init__()
         self.nargs = opt.nargs
         self.model = GItemModel(1, parent=self, opt_type=opt.type)
@@ -157,11 +157,9 @@ class GFileDialog(QtWidgets.QFileDialog):
         elif exists == False:
             self.setFileMode(QtWidgets.QFileDialog.AnyFile)
             self.accept = self.accept_all
-        # self.accept = self.accept_all
 
 
     def accept_all(self):
-        # super(GFileDialog, self).accept()
         super(GFileDialog, self).done(QtWidgets.QFileDialog.Accepted)
 
 class GLineEdit_path(QtWidgets.QLineEdit):
@@ -191,7 +189,7 @@ class GLineEdit_path(QtWidgets.QLineEdit):
             dir_okay=opt.dir_okay
         )
 
-class GPathLindEidt(click.types.Path):
+class GPathGLindEidt_path(click.types.Path):
     def to_widget(self):
         value = GLineEdit_path(
             exists=self.type.exists,
@@ -206,33 +204,93 @@ class GPathLindEidt(click.types.Path):
             return [self.opts[0], value.text()]
         return [generate_label(self), value], to_command
 
+class _GLabeledSlider(QtWidgets.QSlider):
+    def __init__(self, min, max, val):
+        super(_GLabeledSlider, self).__init__(QtCore.Qt.Horizontal)
+        self.min, self.max = min, max
+
+        self.setMinimum(min)
+        self.setMaximum(max)
+        self.setValue(val)
+
+        self.label = self.__init_label()
+
+    def __init_label(self):
+        l = max( [
+            math.ceil(math.log10(abs(x)))
+            for x in [self.min, self.max]
+            ])
+        l += 1
+        return QtWidgets.QLabel('0'*l)
 
 
-class GIntRangeSlider(click.types.IntRange):
+
+class GSlider(QtWidgets.QHBoxLayout):
+    def __init__(self, min=0, max=10, default=None,  *args, **kwargs):
+        super(QtWidgets.QHBoxLayout, self).__init__()
+
+        self.min, self.max, self.default = min, max, default
+        self.label = self.__init_label()
+        self.slider = self.__init_slider()
+
+        self.label.setText(str(self.default))
+
+        self.addWidget(self.slider)
+        self.addWidget(self.label)
+
+    def value(self):
+        return self.slider.value()
+
+    def __init_slider(self):
+        slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        slider.setMinimum(self.min)
+        slider.setMaximum(self.max)
+        default_val = (self.min+self.max)//2
+        if isinstance(self.default, int):
+            if self.min <= self.default <= self.max:
+                default_val = self.default
+        self.default = default_val
+        slider.setValue(default_val)
+        slider.valueChanged.connect(lambda x: self.label.setText(str(x)))
+        return slider
+
+    def __init_label(self):
+        l = max( [
+            math.ceil(math.log10(abs(x)))
+            for x in [self.min, self.max]
+            ])
+        l += 1
+        return QtWidgets.QLabel('0'*l)
+
+
+class GIntRangeGSlider(click.types.IntRange):
     def to_widget(self):
-        value = QtWidgets.QLineEdit()
-        value = QtWidgets.QSlider(Qt.Horizontal)
-        value.setMinimum(self.min)
-        value.setMaximum(self.max)
-        value.setValue((self.min+self.max)//2)
-        value.setTickPosition(QtWidgets.QSlider.TicksBelow)
+        value = GSlider(
+                min=self.type.min,
+                max=self.type.max,
+                default=self.default
+                )
 
         def to_command():
             return [self.opts[0], str(value.value())]
         return [generate_label(self), value], to_command
 
+
 class GIntRangeSlider(click.types.IntRange):
-    def to_widget(self, opt):
+    def to_widget(self):
         value = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-        value.setMinimum(self.min)
-        value.setMaximum(self.max)
-        value.setValue((self.min+self.max)//2)
-        value.setTickPosition(QtWidgets.QSlider.TicksBelow)
-        # value.setTickInterval(5)
+        value.setMinimum(self.type.min)
+        value.setMaximum(self.type.max)
+
+        default_val = (self.type.min+self.type.max)//2
+        if isinstance(self.default, int):
+            if self.type.min <= self.default <= self.type.max:
+                default_val = self.default
+        value.setValue(default_val)
 
         def to_command():
-            return [opt.opts[0], str(value.value())]
-        return [generate_label(opt), value], to_command
+            return [self.opts[0], str(value.value())]
+        return [generate_label(self), value], to_command
 
 class GIntRangeLineEditor(click.types.IntRange):
     def to_widget(self, opt):
@@ -359,9 +417,9 @@ def opt_to_widget(opt):
             return GChoiceComboBox.to_widget(opt)
         elif isinstance(opt.type, click.types.Path):
             print(opt.type.__dict__)
-            return GPathLindEidt.to_widget(opt)
+            return GPathGLindEidt_path.to_widget(opt)
         elif isinstance(opt.type, click.types.IntRange):
-            return GIntRangeSlider(opt.type.min, opt.type.max).to_widget(opt)
+            return GIntRangeGSlider.to_widget(opt)
         elif isinstance(opt.type, click.types.IntParamType):
             return GIntLineEditor.to_widget(opt)
         elif isinstance(opt.type, click.types.FloatParamType):
