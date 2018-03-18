@@ -52,11 +52,11 @@ class MyInt(click.types.ParamType):
         value.setTickPosition(QSlider.TicksBelow)
 
         def to_command():
-            return [self.selfs[0], str(value.value())]
+            return [self.opts[0], str(value.value())]
         return [quick.generate_label(self), value], to_command
 
 @cli.command()
-@click.option("--myint", type=MyInt(10, 20), help='my int')
+@click.option("--myint", type=click.IntRange(10, 20), help='my int')
 def myint(**argvs):
     for k, v in argvs.items():
         print(k, v, type(v))

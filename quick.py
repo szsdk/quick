@@ -449,20 +449,75 @@ def generate_sysargv(cmd_list):
             argv_list += value_func()
     return argv_list
 
-class OptionWidgetSet(object):
-    def __init__(self, func, run_exit):
+# class OptionWidgetSet(object):
+    # def __init__(self, func, run_exit):
+        # self.func = func
+        # self.run_exit = run_exit
+        # self.grid = QtWidgets.QGridLayout()
+        # self.grid.setSpacing(10)
+        # self.grid, self.params_func =\
+            # layout_append_opts(self.grid, self.func.params)
+
+    # def add_sysargv(self):
+        # sys.argv += generate_sysargv(
+            # [(self.func.name, self.params_func)]
+        # )
+        # # self.func(standalone_mode=self.run_exit)
+
+class OptionWidgetSet(QtWidgets.QGridLayout):
+    def __init__(self, func, run_exit, parent_layout=None):
+        super(OptionWidgetSet, self).__init__()
+        self.parent_layout = parent_layout
         self.func = func
         self.run_exit = run_exit
-        self.grid = QtWidgets.QGridLayout()
-        self.grid.setSpacing(10)
-        self.grid, self.params_func =\
-            layout_append_opts(self.grid, self.func.params)
+        self.params_func = self.append_opts(self.func.params)
+        # self.grid, self.params_func =\
+            # layout_append_opts(self.grid, self.func.params)
 
     def add_sysargv(self):
+        if hasattr(self.parent_layout, "add_sysargv"):
+            self.parent_layout.add_sysargv()
         sys.argv += generate_sysargv(
             [(self.func.name, self.params_func)]
         )
-        # self.func(standalone_mode=self.run_exit)
+
+    def append_opts(self, opts):
+        params_func = []
+        i = 0
+        for i, para in enumerate(opts):
+            widget, value_func = opt_to_widget(para)
+            params_func.append(value_func)
+            for idx, w in enumerate(widget):
+                if isinstance(w, QtWidgets.QLayout):
+                    self.addLayout(w, i, idx)
+                else:
+                    self.addWidget(w, i, idx)
+        return params_func
+
+    def generate_cmd_button(self, label, cmd_slot):
+        run_button = QtWidgets.QPushButton(label)
+        run_button.clicked.connect(self.clean_sysargv)
+        run_button.clicked.connect(self.add_sysargv)
+        run_button.clicked.connect(cmd_slot)
+        return run_button
+
+    def add_cmd_button(self, label, cmd_slot, pos=None):
+        run_button = self.generate_cmd_button(label, cmd_slot)
+        if pos is None:
+            pos = self.rowCount()+1, 0
+        self.addWidget(
+            run_button, pos[0], pos[1]
+        )
+
+    def add_cmd_buttons(self, args):
+        row = self.rowCount()+1
+        for col, arg in enumerate(args):
+            self.add_cmd_button(**arg, pos=(row, col))
+
+
+    @QtCore.pyqtSlot()
+    def clean_sysargv(self):
+        sys.argv = []
 
 
 class App(QtWidgets.QWidget):
@@ -475,7 +530,7 @@ class App(QtWidgets.QWidget):
         self.width = 400
         self.height = 140
         self.initUI(run_exit)
-
+    
     def initUI(self, run_exit):
         self.run_exit = run_exit
         self.setWindowTitle(self.title)
@@ -483,46 +538,49 @@ class App(QtWidgets.QWidget):
 
         self.group_opt_set = OptionWidgetSet(self.func, self.run_exit)
         if not isinstance(self.func, click.core.Group):
-            button = QtWidgets.QPushButton('run')
-            self.group_opt_set.grid.addWidget(
-                button, self.group_opt_set.grid.rowCount()+1, 0
-            )
-            # connect button to function on_click
-            button.clicked.connect(self.clean_sysargv)
-            button.clicked.connect(self.group_opt_set.add_sysargv)
-            button.clicked.connect(self.run_cmd)
+            # self.group_opt_set.add_cmd_button('run', self.run_cmd)
+            self.group_opt_set.add_cmd_buttons( args=[
+                {'label':'run', 'cmd_slot': self.run_cmd},
+                {'label':'copy', 'cmd_slot': self.copy_cmd},
+                ])
         else:
             self.tabs = QtWidgets.QTabWidget()
             self.tab_widget_list = []
             self.cmd_opt_list= []
             for cmd, f in self.func.commands.items():
                 tab = QtWidgets.QWidget()
-                opt_set = OptionWidgetSet(f, run_exit)
+                opt_set = OptionWidgetSet(f, run_exit, parent_layout=self.group_opt_set)
                 self.cmd_opt_list.append(opt_set)
-                tab.layout = self.cmd_opt_list[-1].grid
+                tab.layout = self.cmd_opt_list[-1]
                 # Add tabs
                 self.tabs.addTab(tab, cmd)
                 tab.setLayout(tab.layout)
                 self.tab_widget_list.append(tab)
 
-                button = QtWidgets.QPushButton('run')
-                opt_set.grid.addWidget(button, opt_set.grid.rowCount()+1, 0)
+                opt_set.add_cmd_buttons( args=[
+                    {'label':'run', 'cmd_slot': self.run_cmd},
+                    {'label':'copy', 'cmd_slot': self.copy_cmd},
+                    ])
+                # opt_set.add_cmd_button('run', self.run_cmd)
+                # opt_set.add_cmd_button('copy', self.copy_cmd)
 
-                # connect button to function on_click
-                button.clicked.connect(self.clean_sysargv)
-                button.clicked.connect(self.group_opt_set.add_sysargv)
-                button.clicked.connect(opt_set.add_sysargv)
-                button.clicked.connect(self.run_cmd)
-
-            self.group_opt_set.grid.addWidget(self.tabs)
-
-        self.setLayout(self.group_opt_set.grid)
+            self.group_opt_set.addWidget(self.tabs)
+        self.setLayout(self.group_opt_set)
 
         self.show()
 
     @QtCore.pyqtSlot()
-    def clean_sysargv(self):
-        sys.argv = []
+    def copy_cmd(self):
+        cb = QtWidgets.QApplication.clipboard()
+        cb.clear(mode=cb.Clipboard )
+        cmd_text = ' '.join(sys.argv)
+        cb.setText(cmd_text, mode=cb.Clipboard)
+
+        msg = QtWidgets.QMessageBox()
+        msg.setIcon(QtWidgets.QMessageBox.Information)
+        msg.setText(f"copy '{cmd_text}' to clipboard'")
+        msg.exec_()
+
 
     @QtCore.pyqtSlot()
     def run_cmd(self):
