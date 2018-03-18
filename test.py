@@ -1,3 +1,4 @@
+import time
 import quick
 import click
 from PyQt5.QtGui import *
@@ -69,6 +70,11 @@ def myint(**argvs):
 def pathtest(**argvs):
     for k, v in argvs.items():
         print(k, v, type(v))
+
+@cli.command()
+@click.option("--sleep_time", type=click.IntRange(0, 20), help='sleep time')
+def sleep(sleep_time):
+    time.sleep(sleep_time)
 
 @quick.gui_option
 @click.command()

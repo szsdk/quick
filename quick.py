@@ -217,7 +217,7 @@ class _GLabeledSlider(QtWidgets.QSlider):
 
     def __init_label(self):
         l = max( [
-            math.ceil(math.log10(abs(x)))
+            math.ceil(math.log10(abs(x))) if x != 0 else 1
             for x in [self.min, self.max]
             ])
         l += 1
@@ -256,7 +256,7 @@ class GSlider(QtWidgets.QHBoxLayout):
 
     def __init_label(self):
         l = max( [
-            math.ceil(math.log10(abs(x)))
+            math.ceil(math.log10(abs(x))) if x != 0 else 1
             for x in [self.min, self.max]
             ])
         l += 1
@@ -494,12 +494,13 @@ class OptionWidgetSet(QtWidgets.QGridLayout):
                     self.addWidget(w, i, idx)
         return params_func
 
-    def generate_cmd_button(self, label, cmd_slot):
-        run_button = QtWidgets.QPushButton(label)
-        run_button.clicked.connect(self.clean_sysargv)
-        run_button.clicked.connect(self.add_sysargv)
-        run_button.clicked.connect(cmd_slot)
-        return run_button
+    def generate_cmd_button(self, label, cmd_slot, tooltip=""):
+        button = QtWidgets.QPushButton(label)
+        button.setToolTip(tooltip)
+        button.clicked.connect(self.clean_sysargv)
+        button.clicked.connect(self.add_sysargv)
+        button.clicked.connect(cmd_slot)
+        return button
 
     def add_cmd_button(self, label, cmd_slot, pos=None):
         run_button = self.generate_cmd_button(label, cmd_slot)
@@ -511,8 +512,12 @@ class OptionWidgetSet(QtWidgets.QGridLayout):
 
     def add_cmd_buttons(self, args):
         row = self.rowCount()+1
+        cmd_layout = QtWidgets.QGridLayout()
+        cmd_layout.setHorizontalSpacing(20)
         for col, arg in enumerate(args):
-            self.add_cmd_button(**arg, pos=(row, col))
+            button = self.generate_cmd_button(**arg)
+            cmd_layout.addWidget(button, 0, col)
+        self.addLayout(cmd_layout, row, 0, 1, 2)
 
 
     @QtCore.pyqtSlot()
@@ -540,8 +545,8 @@ class App(QtWidgets.QWidget):
         if not isinstance(self.func, click.core.Group):
             # self.group_opt_set.add_cmd_button('run', self.run_cmd)
             self.group_opt_set.add_cmd_buttons( args=[
-                {'label':'run', 'cmd_slot': self.run_cmd},
-                {'label':'copy', 'cmd_slot': self.copy_cmd},
+                {'label':'run', 'cmd_slot': self.run_cmd, "tooltip":"run command"},
+                {'label':'copy', 'cmd_slot': self.copy_cmd, "tooltip":"copy command to clipboard"},
                 ])
         else:
             self.tabs = QtWidgets.QTabWidget()
@@ -558,8 +563,8 @@ class App(QtWidgets.QWidget):
                 self.tab_widget_list.append(tab)
 
                 opt_set.add_cmd_buttons( args=[
-                    {'label':'run', 'cmd_slot': self.run_cmd},
-                    {'label':'copy', 'cmd_slot': self.copy_cmd},
+                {'label':'run', 'cmd_slot': self.run_cmd, "tooltip":"run command"},
+                {'label':'copy', 'cmd_slot': self.copy_cmd, "tooltip":"copy command to clipboard"},
                     ])
                 # opt_set.add_cmd_button('run', self.run_cmd)
                 # opt_set.add_cmd_button('copy', self.copy_cmd)
