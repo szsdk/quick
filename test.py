@@ -29,13 +29,13 @@ def example_cmd(**argvs):
         print(k, v, type(v))
 
 
-@cli.command()
-@click.option("--hello")
-def sync(hello):
-    print('Synching', hello)
-
 class MyInt(click.types.ParamType):
-    name = "my int"
+    name = "my int range"
+
+    def __init__(self, min, max):
+        self.min = min
+        self.max = max
+        self.help = "my int range"
 
     def convert(self, value, param, ctx):
         try:
@@ -43,31 +43,28 @@ class MyInt(click.types.ParamType):
         except (ValueError, UnicodeError):
             self.fail('%s is not a valid integer' % value, param, ctx)
 
-    # @staticmethod
     def to_widget(self):
         value = QLineEdit()
         value = QSlider(Qt.Horizontal)
-        value.setMinimum(10)
-        value.setMaximum(30)
-        value.setValue(20)
+        value.setMinimum(self.min)
+        value.setMaximum(self.max)
+        value.setValue(self.min)
         value.setTickPosition(QSlider.TicksBelow)
-        value.setTickInterval(5)
 
         def to_command():
             return [self.selfs[0], str(value.value())]
         return [quick.generate_label(self), value], to_command
 
 @cli.command()
-@click.option("--myint", type=quick.GIntRangeLineEditor(10, 20), help='my int')
+@click.option("--myint", type=MyInt(10, 20), help='my int')
 def myint(**argvs):
     for k, v in argvs.items():
         print(k, v, type(v))
 
 @cli.command()
 @click.argument("default", type=click.Path(), nargs=-1)
-# @click.option("--path", type=click.Path(), help="default path")
 @click.option("--file_path", type=click.Path(file_okay=True, dir_okay=False), help="select a file")
-@click.option("--warning_path", type=click.Path(file_okay=False, dir_okay=False), help="select a file")
+@click.option("--no_exist_path", type=click.Path(file_okay=False, dir_okay=False), help="select a file")
 @click.option("--folders", type=click.Path(file_okay=False, dir_okay=True), nargs=3)
 def pathtest(**argvs):
     for k, v in argvs.items():

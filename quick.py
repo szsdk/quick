@@ -7,12 +7,14 @@ from PyQt5 import QtCore
 
 import click
 
+_GTypeRole = QtCore.Qt.UserRole
+
 class GListView(QtWidgets.QListView):
-    def __init__(self, nargs):
+    def __init__(self, opt):
         # TODO: nargs should include type information.
         super(GListView, self).__init__()
-        self.nargs = nargs
-        self.model = GItemModel(1, parent=self, opt_type=click.STRING)
+        self.nargs = opt.nargs
+        self.model = GItemModel(1, parent=self, opt_type=opt.type)
         self.setModel(self.model)
         self.delegate = GEditDelegate(self)
         self.setItemDelegate(self.delegate)
@@ -50,7 +52,6 @@ class GItemModel(QtGui.QStandardItemModel):
     def insertRow(self, idx):
         super(GItemModel, self).insertRow(idx)
         index = self.index(idx, 0, QtCore.QModelIndex())
-        print(index.row())
         self.setData(index, QtGui.QBrush(QtGui.QColor(100,100,100)),  role=QtCore.Qt.ForegroundRole)
 
 
@@ -69,8 +70,9 @@ class GItemModel(QtGui.QStandardItemModel):
                 return dstr
 
 
-        if role == QtCore.Qt.UserRole:
+        if role == _GTypeRole:
             tp = click.STRING
+            print("type:", self.type)
             if isinstance(self.type, click.types.Tuple):
                 row = index.row()
                 if 0 <= row < len(self.type.types):
@@ -83,7 +85,7 @@ class GItemModel(QtGui.QStandardItemModel):
 
 class GEditDelegate(QtWidgets.QStyledItemDelegate):
     def createEditor(self, parent, option, index):
-        tp = index.data(role=QtCore.Qt.UserRole)
+        tp = index.data(role=_GTypeRole)
         if isinstance(tp, click.Path):
             led = GLineEdit_path.from_option(tp, parent)
         else:
@@ -288,7 +290,7 @@ class GTupleGListView(click.Tuple):
 
 
 def multi_text_option(opt):
-    value = GListView(opt.nargs)
+    value = GListView(opt)
     def to_command():
         _ = [opt.opts[0]]
         for idx in range(value.model.rowCount()):
@@ -297,7 +299,7 @@ def multi_text_option(opt):
     return [generate_label(opt), value], to_command
 
 def multi_text_arguement(opt):
-    value = GListView(opt.nargs)
+    value = GListView(opt)
     def to_command():
         _ = []
         for idx in range(value.model.rowCount()):
@@ -335,9 +337,9 @@ def opt_to_widget(opt):
     #customed widget
     if isinstance(opt.type, click.types.FuncParamType):
         if hasattr(opt.type.func, 'to_widget'):
-            return opt.type.func.to_widget(opt)
+            return opt.type.func.to_widget()
     elif hasattr(opt.type, 'to_widget'):
-            return opt.type.to_widget(opt)
+            return opt.type.to_widget()
 
     if type(opt) == click.core.Argument:
         if opt.nargs > 1 or opt.nargs == -1:
