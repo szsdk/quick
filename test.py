@@ -75,8 +75,6 @@ def pathtest(**argvs):
 @click.option("--sleep_time", type=click.IntRange(0, 20), help='sleep time')
 def sleep(sleep_time):
     time.sleep(sleep_time)
-
-@quick.gui_option
 @click.command()
 def option_gui():
     """run with

@@ -1,5 +1,6 @@
 import sys
 import warnings
+from functools import partial
 
 from PyQt5 import QtGui
 from PyQt5 import QtWidgets
@@ -19,12 +20,14 @@ class GListView(QtWidgets.QListView):
         self.delegate = GEditDelegate(self)
         self.setItemDelegate(self.delegate)
         self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
-        self.setToolTip(
-                "'a': add a new item blow the selected one\n"
-                "'d': delete the selected item"
-        )
+        if self.nargs == -1:
+            self.keyPressEvent = self.key_press
+            self.setToolTip(
+                    "'a': add a new item blow the selected one\n"
+                    "'d': delete the selected item"
+            )
 
-    def keyPressEvent(self, e):
+    def key_press(self, e):
         if self.nargs == -1:
             if e.key() == QtCore.Qt.Key_A:
                 for i in self.selectedIndexes():
@@ -68,7 +71,6 @@ class GItemModel(QtGui.QStandardItemModel):
                 else:
                     dstr = self.type.name
                 return dstr
-
 
         if role == _GTypeRole:
             tp = click.STRING
@@ -114,28 +116,28 @@ def generate_label(opt):
 
 
 class GStringLineEditor(click.types.StringParamType):
-    def to_widget(self, validator=None):
+    def to_widget(self, opt, validator=None):
         value = QtWidgets.QLineEdit()
-        value.setPlaceholderText(self.type.name)
-        if self.default:
-            value.setText(str(self.default))
-        if self.hide_input:
+        value.setPlaceholderText(self.name)
+        if opt.default:
+            value.setText(str(opt.default))
+        if opt.hide_input:
             value.setEchoMode(QtWidgets.QLineEdit.Password)
         value.setValidator(validator)
 
         def to_command():
-            return [self.opts[0], value.text()]
-        return [generate_label(self), value], to_command
+            return [opt.opts[0], value.text()]
+        return [generate_label(opt), value], to_command
 
 
 class GIntLineEditor(GStringLineEditor):
-    def to_widget(self):
-        return GStringLineEditor.to_widget(self,
+    def to_widget(self, opt):
+        return GStringLineEditor.to_widget(self, opt,
                 validator=QtGui.QIntValidator())
 
 class GFloatLineEditor(GStringLineEditor):
-    def to_widget(self):
-        return GStringLineEditor.to_widget(self,
+    def to_widget(self, opt):
+        return GStringLineEditor.to_widget(self, opt,
                 validator=QtGui.QDoubleValidator())
 
 class GFileDialog(QtWidgets.QFileDialog):
@@ -190,19 +192,19 @@ class GLineEdit_path(QtWidgets.QLineEdit):
         )
 
 class GPathGLindEidt_path(click.types.Path):
-    def to_widget(self):
+    def to_widget(self, opt):
         value = GLineEdit_path(
-            exists=self.type.exists,
-            file_okay=self.type.file_okay,
-            dir_okay=self.type.dir_okay
+            exists=self.exists,
+            file_okay=self.file_okay,
+            dir_okay=self.dir_okay
         )
-        value.setPlaceholderText(self.type.name)
-        if self.default:
-            value.setText(str(self.default))
+        value.setPlaceholderText(self.name)
+        if opt.default:
+            value.setText(str(opt.default))
 
         def to_command():
-            return [self.opts[0], value.text()]
-        return [generate_label(self), value], to_command
+            return [opt.opts[0], value.text()]
+        return [generate_label(opt), value], to_command
 
 class _GLabeledSlider(QtWidgets.QSlider):
     def __init__(self, min, max, val):
@@ -264,33 +266,33 @@ class GSlider(QtWidgets.QHBoxLayout):
 
 
 class GIntRangeGSlider(click.types.IntRange):
-    def to_widget(self):
+    def to_widget(self, opt):
         value = GSlider(
-                min=self.type.min,
-                max=self.type.max,
-                default=self.default
+                min=self.min,
+                max=self.max,
+                default=opt.default
                 )
 
         def to_command():
-            return [self.opts[0], str(value.value())]
-        return [generate_label(self), value], to_command
+            return [opt.opts[0], str(value.value())]
+        return [generate_label(opt), value], to_command
 
 
 class GIntRangeSlider(click.types.IntRange):
-    def to_widget(self):
+    def to_widget(self, opt):
         value = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-        value.setMinimum(self.type.min)
-        value.setMaximum(self.type.max)
+        value.setMinimum(self.min)
+        value.setMaximum(self.max)
 
-        default_val = (self.type.min+self.type.max)//2
-        if isinstance(self.default, int):
-            if self.type.min <= self.default <= self.type.max:
-                default_val = self.default
+        default_val = (self.min+self.max)//2
+        if isinstance(opt.default, int):
+            if self.min <= opt.default <= self.max:
+                default_val = opt.default
         value.setValue(default_val)
 
         def to_command():
-            return [self.opts[0], str(value.value())]
-        return [generate_label(self), value], to_command
+            return [opt.opts[0], str(value.value())]
+        return [generate_label(opt), value], to_command
 
 class GIntRangeLineEditor(click.types.IntRange):
     def to_widget(self, opt):
@@ -316,9 +318,9 @@ def bool_flag_option(opt):
     return [checkbox], to_command
 
 class GChoiceComboBox(click.types.Choice):
-    def to_widget(opt):
+    def to_widget(self, opt):
         cb = QtWidgets.QComboBox()
-        cb.addItems(opt.type.choices)
+        cb.addItems(self.choices)
 
         def to_command():
             return [opt.opts[0], cb.currentText()]
@@ -332,29 +334,20 @@ def count_option(opt):
     return [generate_label(opt), sb], to_command
 
 class GTupleGListView(click.Tuple):
-    def to_widget(self):
-        model = GItemModel(self.nargs, opt_type=self.type, default=self.default)
+    def to_widget(self, opt):
+        model = GItemModel(opt.nargs, opt_type=self, default=opt.default)
         view = QtWidgets.QListView()
         view.setModel(model)
         delegate = GEditDelegate(view)
         view.setItemDelegate(delegate)
 
         def to_command():
-            _ = [self.opts[0]]
+            _ = [opt.opts[0]]
             for idx in range(model.rowCount()):
                 _.append(model.item(idx).text())
             return _
-        return [generate_label(self), view], to_command
+        return [generate_label(opt), view], to_command
 
-
-def multi_text_option(opt):
-    value = GListView(opt)
-    def to_command():
-        _ = [opt.opts[0]]
-        for idx in range(value.model.rowCount()):
-            _.append(value.model.item(idx).text())
-        return _
-    return [generate_label(opt), value], to_command
 
 def multi_text_arguement(opt):
     value = GListView(opt)
@@ -406,26 +399,24 @@ def opt_to_widget(opt):
             return text_arguement(opt)
     else:
         if opt.nargs > 1 :
-            return GTupleGListView.to_widget(opt)
-        # elif opt.nargs == -1:
-            # return multi_text_option(opt)
+            return GTupleGListView.to_widget(opt.type, opt)
         elif opt.is_bool_flag:
             return bool_flag_option(opt)
         elif opt.count:
             return count_option(opt)
         elif isinstance(opt.type, click.types.Choice):
-            return GChoiceComboBox.to_widget(opt)
+            return GChoiceComboBox.to_widget(opt.type, opt)
         elif isinstance(opt.type, click.types.Path):
             print(opt.type.__dict__)
-            return GPathGLindEidt_path.to_widget(opt)
+            return GPathGLindEidt_path.to_widget(opt.type, opt)
         elif isinstance(opt.type, click.types.IntRange):
-            return GIntRangeGSlider.to_widget(opt)
+            return GIntRangeGSlider.to_widget(opt.type, opt)
         elif isinstance(opt.type, click.types.IntParamType):
-            return GIntLineEditor.to_widget(opt)
+            return GIntLineEditor.to_widget(opt.type, opt)
         elif isinstance(opt.type, click.types.FloatParamType):
-            return GFloatLineEditor.to_widget(opt)
+            return GFloatLineEditor.to_widget(opt.type, opt)
         else:
-            return GStringLineEditor.to_widget(opt)
+            return GStringLineEditor.to_widget(opt.type, opt)
 
 
 def layout_append_opts(layout, opts):
@@ -524,10 +515,29 @@ class OptionWidgetSet(QtWidgets.QGridLayout):
     def clean_sysargv(self):
         sys.argv = []
 
+class RunCommand(QtCore.QRunnable):
+    def __init__(self, func, run_exit):
+        super(RunCommand, self).__init__()
+        self.func = func
+        self.run_exit = run_exit
+
+    @QtCore.pyqtSlot()
+    def run(self):
+        print(sys.argv)
+        try:
+            self.func(standalone_mode=self.run_exit)
+        except click.exceptions.BadParameter as bpe:
+            # warning message
+            msg = QtWidgets.QMessageBox()
+            msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.setText(bpe.format_message())
+            msg.exec_()
 
 class App(QtWidgets.QWidget):
-    def __init__(self, func, run_exit):
+# class App(QtWidgets.QMainWindow):
+    def __init__(self, func, run_exit, new_thread):
         super().__init__()
+        self.new_thread = new_thread
         self.title = func.name
         self.func = func
         self.left = 10
@@ -535,6 +545,7 @@ class App(QtWidgets.QWidget):
         self.width = 400
         self.height = 140
         self.initUI(run_exit)
+        self.threadpool = QtCore.QThreadPool()
     
     def initUI(self, run_exit):
         self.run_exit = run_exit
@@ -563,11 +574,9 @@ class App(QtWidgets.QWidget):
                 self.tab_widget_list.append(tab)
 
                 opt_set.add_cmd_buttons( args=[
-                {'label':'run', 'cmd_slot': self.run_cmd, "tooltip":"run command"},
+                {'label':'run', 'cmd_slot': partial(self.run_cmd, new_thread=self.new_thread), "tooltip":"run command"},
                 {'label':'copy', 'cmd_slot': self.copy_cmd, "tooltip":"copy command to clipboard"},
                     ])
-                # opt_set.add_cmd_button('run', self.run_cmd)
-                # opt_set.add_cmd_button('copy', self.copy_cmd)
 
             self.group_opt_set.addWidget(self.tabs)
         self.setLayout(self.group_opt_set)
@@ -586,28 +595,26 @@ class App(QtWidgets.QWidget):
         msg.setText(f"copy '{cmd_text}' to clipboard'")
         msg.exec_()
 
-
-    @QtCore.pyqtSlot()
-    def run_cmd(self):
-        print(sys.argv)
-        try:
-            self.func(standalone_mode=self.run_exit)
-        except click.exceptions.BadParameter as bpe:
-            # warning message
-            msg = QtWidgets.QMessageBox()
-            msg.setIcon(QtWidgets.QMessageBox.Warning)
-            msg.setText(bpe.format_message())
-            msg.exec_()
+    def run_cmd(self, new_thread):
+        runcmd = RunCommand(self.func, self.run_exit)
+        if new_thread:
+            self.threadpool.start(runcmd)
+        else:
+            runcmd.run()
 
 
-def gui_it(click_func, run_exit:bool=False)->None:
+def gui_it(click_func, run_exit:bool=False, new_thread:bool=True)->None:
+    """ `new_thread` is used for qt-based func, like matplotlib"""
+    # TODO: This is no a good place for argument `new_thread` because
+    # some func may not use qt in the function.
     app = QtWidgets.QApplication(sys.argv)
-    ex = App(click_func, run_exit)
+    ex = App(click_func, run_exit, new_thread)
     sys.exit(app.exec_())
 
 
 def gui_option(f:click.core.BaseCommand)->click.core.BaseCommand:
     """decorator for adding '--gui' option to command"""
+    # TODO: add run_exit, new_thread
     def run_gui_it(ctx, param, value):
         if not value or ctx.resilient_parsing:
             return
