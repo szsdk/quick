@@ -556,8 +556,8 @@ class App(QtWidgets.QWidget):
         if not isinstance(self.func, click.core.Group):
             # self.group_opt_set.add_cmd_button('run', self.run_cmd)
             self.group_opt_set.add_cmd_buttons( args=[
-                {'label':'run', 'cmd_slot': self.run_cmd, "tooltip":"run command"},
-                {'label':'copy', 'cmd_slot': self.copy_cmd, "tooltip":"copy command to clipboard"},
+                {'label':'&run', 'cmd_slot': self.run_cmd, "tooltip":"run command"},
+                {'label':'&copy', 'cmd_slot': self.copy_cmd, "tooltip":"copy command to clipboard"},
                 ])
         else:
             self.tabs = QtWidgets.QTabWidget()
@@ -574,11 +574,14 @@ class App(QtWidgets.QWidget):
                 self.tab_widget_list.append(tab)
 
                 opt_set.add_cmd_buttons( args=[
-                {'label':'run', 'cmd_slot': partial(self.run_cmd, new_thread=self.new_thread), "tooltip":"run command"},
-                {'label':'copy', 'cmd_slot': self.copy_cmd, "tooltip":"copy command to clipboard"},
+                {'label':'&run', 'cmd_slot': partial(self.run_cmd, new_thread=self.new_thread), "tooltip":"run command"},
+                {'label':'&copy', 'cmd_slot': self.copy_cmd, "tooltip":"copy command to clipboard"},
                     ])
 
-            self.group_opt_set.addWidget(self.tabs)
+            self.group_opt_set.addWidget(
+                    self.tabs, self.group_opt_set.rowCount(), 0,
+                    1, self.group_opt_set.columnCount()
+                    )
         self.setLayout(self.group_opt_set)
 
         self.show()
