@@ -10,12 +10,13 @@ import click
 import math
 
 _GTypeRole = QtCore.Qt.UserRole
+_missing = object()
 
 class GListView(QtWidgets.QListView):
     def __init__(self, opt):
         super(GListView, self).__init__()
         self.nargs = opt.nargs
-        self.model = GItemModel(1, parent=self, opt_type=opt.type)
+        self.model = GItemModel(max(1,opt.nargs), parent=self, opt_type=opt.type, default=opt.default)
         self.setModel(self.model)
         self.delegate = GEditDelegate(self)
         self.setItemDelegate(self.delegate)
@@ -110,14 +111,22 @@ class GEditDelegate(QtWidgets.QStyledItemDelegate):
         QtWidgets.QStyledItemDelegate.setModelData(self, editor, model, index)
 
 def generate_label(opt):
-    param = QtWidgets.QLabel(opt.name)
+    show_name = getattr(opt, 'show_name', _missing)
+    show_name = opt.name if show_name is _missing else show_name
+    param = QtWidgets.QLabel(show_name)
+    # else:
+        # param = QtWidgets.QLabel(opt.name)
+    # if hasattr(opt, "show_name") :
+        # param = QtWidgets.QLabel(opt.show_name)
+    # else:
+        # param = QtWidgets.QLabel(opt.name)
     param.setToolTip(opt.help)
     return param
 
 
 class GStringLineEditor(click.types.StringParamType):
     def to_widget(self, opt, validator=None):
-        value = QtWidgets.QLineEdit()
+        value = _InputLineEdit()
         value.setPlaceholderText(self.name)
         if opt.default:
             value.setText(str(opt.default))
@@ -304,7 +313,7 @@ class GIntRangeLineEditor(click.types.IntRange):
         return [generate_label(opt), value], to_command
 
 def bool_flag_option(opt):
-    checkbox = QtWidgets.QCheckBox(opt.name)
+    checkbox = _InputCheckBox(opt.name)
     if opt.default:
         checkbox.setCheckState(2)
     # set tip
@@ -327,7 +336,7 @@ class GChoiceComboBox(click.types.Choice):
         return [generate_label(opt), cb], to_command
 
 def count_option(opt):
-    sb = QtWidgets.QSpinBox()
+    sb = _InputSpinBox()
 
     def to_command():
         return [opt.opts[0]] * int(sb.text())
@@ -335,11 +344,7 @@ def count_option(opt):
 
 class GTupleGListView(click.Tuple):
     def to_widget(self, opt):
-        model = GItemModel(opt.nargs, opt_type=self, default=opt.default)
-        view = QtWidgets.QListView()
-        view.setModel(model)
-        delegate = GEditDelegate(view)
-        view.setItemDelegate(delegate)
+        view = GListView(opt)
 
         def to_command():
             _ = [opt.opts[0]]
@@ -440,20 +445,20 @@ def generate_sysargv(cmd_list):
             argv_list += value_func()
     return argv_list
 
-# class OptionWidgetSet(object):
-    # def __init__(self, func, run_exit):
-        # self.func = func
-        # self.run_exit = run_exit
-        # self.grid = QtWidgets.QGridLayout()
-        # self.grid.setSpacing(10)
-        # self.grid, self.params_func =\
-            # layout_append_opts(self.grid, self.func.params)
+class _InputTabWidget(QtWidgets.QTabWidget):
+    pass
 
-    # def add_sysargv(self):
-        # sys.argv += generate_sysargv(
-            # [(self.func.name, self.params_func)]
-        # )
-        # # self.func(standalone_mode=self.run_exit)
+class _HelpLabel(QtWidgets.QLabel):
+    pass
+
+class _InputLineEdit(QtWidgets.QLineEdit):
+    pass
+
+class _InputCheckBox(QtWidgets.QCheckBox):
+    pass
+
+class _InputSpinBox(QtWidgets.QSpinBox):
+    pass
 
 class OptionWidgetSet(QtWidgets.QGridLayout):
     def __init__(self, func, run_exit, parent_layout=None):
@@ -461,9 +466,15 @@ class OptionWidgetSet(QtWidgets.QGridLayout):
         self.parent_layout = parent_layout
         self.func = func
         self.run_exit = run_exit
+        if func.help:
+            label = _HelpLabel(func.help)
+            label.setWordWrap(True)
+            self.addWidget(label, 0, 0, 1, 2)
+            frame = QtWidgets.QFrame()
+            frame.setFrameShape(QtWidgets.QFrame.HLine)
+            frame.setFrameShadow(QtWidgets.QFrame.Sunken)
+            self.addWidget(frame, 1, 0, 1, 2)
         self.params_func = self.append_opts(self.func.params)
-        # self.grid, self.params_func =\
-            # layout_append_opts(self.grid, self.func.params)
 
     def add_sysargv(self):
         if hasattr(self.parent_layout, "add_sysargv"):
@@ -474,8 +485,7 @@ class OptionWidgetSet(QtWidgets.QGridLayout):
 
     def append_opts(self, opts):
         params_func = []
-        i = 0
-        for i, para in enumerate(opts):
+        for i, para in enumerate(opts, self.rowCount()):
             widget, value_func = opt_to_widget(para)
             params_func.append(value_func)
             for idx, w in enumerate(widget):
@@ -533,8 +543,17 @@ class RunCommand(QtCore.QRunnable):
             msg.setText(bpe.format_message())
             msg.exec_()
 
+class GCommand(click.Command):
+    def __init__(self, new_thread=True, *arg, **args):
+        super(GCommand, self).__init__(*arg, **args)
+        self.new_thread = new_thread
+
+class GOption(click.Option):
+    def __init__(self, *arg, show_name=_missing, **args):
+        super(GOption, self).__init__(*arg, **args)
+        self.show_name = show_name
+
 class App(QtWidgets.QWidget):
-# class App(QtWidgets.QMainWindow):
     def __init__(self, func, run_exit, new_thread):
         super().__init__()
         self.new_thread = new_thread
@@ -546,45 +565,37 @@ class App(QtWidgets.QWidget):
         self.height = 140
         self.initUI(run_exit)
         self.threadpool = QtCore.QThreadPool()
-    
+
+    def initCommandUI(self, func, run_exit, parent_layout=None):
+        opt_set = OptionWidgetSet(func, run_exit, parent_layout=parent_layout)
+        if isinstance(func, click.MultiCommand):
+            tabs = _InputTabWidget()
+            for cmd, f in func.commands.items():
+                print(cmd)
+                sub_opt_set = self.initCommandUI(f, run_exit, parent_layout=opt_set)
+                tab = QtWidgets.QWidget()
+                tab.setLayout(sub_opt_set)
+                tabs.addTab(tab, cmd)
+            opt_set.addWidget(
+                    tabs, opt_set.rowCount(), 0, 1, 2
+                    )
+            return opt_set
+        elif isinstance(func, click.Command):
+            new_thread = func.new_thread if hasattr(func, "new_thread") else self.new_thread 
+            opt_set.add_cmd_buttons( args=[
+                {'label':'&run', 'cmd_slot': partial(self.run_cmd, new_thread=new_thread), "tooltip":"run command"},
+                {'label':'&copy', 'cmd_slot': self.copy_cmd, "tooltip":"copy command to clipboard"},
+                ])
+            return opt_set
+
     def initUI(self, run_exit):
         self.run_exit = run_exit
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
-
-        self.group_opt_set = OptionWidgetSet(self.func, self.run_exit)
-        if not isinstance(self.func, click.core.Group):
-            # self.group_opt_set.add_cmd_button('run', self.run_cmd)
-            self.group_opt_set.add_cmd_buttons( args=[
-                {'label':'&run', 'cmd_slot': self.run_cmd, "tooltip":"run command"},
-                {'label':'&copy', 'cmd_slot': self.copy_cmd, "tooltip":"copy command to clipboard"},
-                ])
-        else:
-            self.tabs = QtWidgets.QTabWidget()
-            self.tab_widget_list = []
-            self.cmd_opt_list= []
-            for cmd, f in self.func.commands.items():
-                tab = QtWidgets.QWidget()
-                opt_set = OptionWidgetSet(f, run_exit, parent_layout=self.group_opt_set)
-                self.cmd_opt_list.append(opt_set)
-                tab.layout = self.cmd_opt_list[-1]
-                # Add tabs
-                self.tabs.addTab(tab, cmd)
-                tab.setLayout(tab.layout)
-                self.tab_widget_list.append(tab)
-
-                opt_set.add_cmd_buttons( args=[
-                {'label':'&run', 'cmd_slot': partial(self.run_cmd, new_thread=self.new_thread), "tooltip":"run command"},
-                {'label':'&copy', 'cmd_slot': self.copy_cmd, "tooltip":"copy command to clipboard"},
-                    ])
-
-            self.group_opt_set.addWidget(
-                    self.tabs, self.group_opt_set.rowCount(), 0,
-                    1, self.group_opt_set.columnCount()
-                    )
-        self.setLayout(self.group_opt_set)
-
+        print(self.new_thread)
+        self.setLayout(self.initCommandUI(self.func, run_exit, ))
         self.show()
+
 
     @QtCore.pyqtSlot()
     def copy_cmd(self):
@@ -611,6 +622,29 @@ def gui_it(click_func, run_exit:bool=False, new_thread:bool=True)->None:
     # TODO: This is no a good place for argument `new_thread` because
     # some func may not use qt in the function.
     app = QtWidgets.QApplication(sys.argv)
+    app.setStyleSheet("""
+        .QLabel {
+            font-size: 14px;
+            }
+        ._HelpLabel {
+            font-size: 12px;
+            }
+        ._InputLineEdit{
+            font-size: 14px;
+            }
+        ._InputCheckBox{
+            font-size: 14px;
+            }
+        ._InputSpinBox{
+            font-size: 14px;
+            }
+        ._InputTabWidget{
+            font: bold;
+            }
+        .GListView{
+            font-size: 14px;
+            }
+        """)
     ex = App(click_func, run_exit, new_thread)
     sys.exit(app.exec_())
 

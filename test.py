@@ -6,13 +6,13 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
 # @quick.gui_option
-@click.group()
+@click.group(help="Test for quick library")
 @click.option('--debug/--no-debug', default=False)
 def cli(debug):
     print(debug)
 
 
-@cli.command()
+@cli.command(help="Assemble for almost all default widgets in quick library")
 @click.argument("arg", nargs=-1)
 @click.option("--hello", default="world", help="say hello")
 @click.option("--add", type=int, help="input an integer number",\
@@ -71,8 +71,8 @@ def pathtest(**argvs):
     for k, v in argvs.items():
         print(k, v, type(v))
 
-@cli.command()
-@click.option("--sleep_time", type=click.IntRange(0, 20), help='sleep time')
+@cli.command(cls=quick.GCommand, new_thread=True)
+@click.option("--sleep_time", type=click.IntRange(0, 20), help='sleep time', cls=quick.GOption, show_name="睡觉时间")
 def sleep(sleep_time):
     time.sleep(sleep_time)
 @click.command()
@@ -86,5 +86,5 @@ def option_gui():
 if __name__ == "__main__":
     # quick.gui_it(example_cmd, run_exit=True)
     # option_gui()
-    quick.gui_it(cli, run_exit=False)
+    quick.gui_it(cli, run_exit=False, new_thread=False)
     # cli()
