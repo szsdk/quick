@@ -51,7 +51,12 @@ class GStyle(object):
         if not GStyle.check_style(style):
             self.text_color = "black"
             self.placehoder_color = "#898b8d"
-            self.stylesheet = GStyle._base_style
+            self.stylesheet = GStyle._base_style +\
+                    """
+                    ._Spliter{
+                        border: 1px inset gray;
+                        }
+                    """
         elif style == "qdarkstyle":
             self.text_color = '#eff0f1'
             self.placehoder_color = "#898b8d"
@@ -60,6 +65,9 @@ class GStyle(object):
                     """
                     .GListView{
                         padding: 5px;
+                        }
+                    ._Spliter{
+                        border: 5px solid gray;
                         }
                     """
 
@@ -500,6 +508,11 @@ def generate_sysargv(cmd_list):
             argv_list += value_func()
     return argv_list
 
+class _Spliter(QtWidgets.QFrame):
+    def __init__(self, parent=None):
+        super(_Spliter, self).__init__( parent=parent)
+        self.setFrameShape(QtWidgets.QFrame.HLine)
+
 class _InputTabWidget(QtWidgets.QTabWidget):
     pass
 
@@ -528,9 +541,7 @@ class OptionWidgetSet(QtWidgets.QGridLayout):
             label = _HelpLabel(func.help)
             label.setWordWrap(True)
             self.addWidget(label, 0, 0, 1, 2)
-            frame = QtWidgets.QFrame()
-            frame.setFrameShape(QtWidgets.QFrame.HLine)
-            frame.setFrameShadow(QtWidgets.QFrame.Sunken)
+            frame = _Spliter()
             self.addWidget(frame, 1, 0, 1, 2)
         self.params_func = self.append_opts(self.func.params)
 
@@ -551,6 +562,7 @@ class OptionWidgetSet(QtWidgets.QGridLayout):
                     self.addLayout(w, i, idx)
                 else:
                     self.addWidget(w, i, idx)
+            self.setRowStretch(i, 5)
         return params_func
 
     def generate_cmd_button(self, label, cmd_slot, tooltip=""):

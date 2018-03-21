@@ -8,8 +8,9 @@ from PyQt5.QtCore import *
 # @quick.gui_option
 @click.group(help="Test for quick library")
 @click.option('--debug/--no-debug', default=False)
-def cli(debug):
-    print(debug)
+def cli(**argvs):
+    for k, v in argvs.items():
+        print(k, v, type(v))
 
 
 @cli.command(help="Assemble for almost all default widgets in quick library")
@@ -59,10 +60,11 @@ class MyInt(click.types.ParamType):
 @cli.command()
 @click.option("--myint", type=click.IntRange(10, 20), help='my int')
 def myint(**argvs):
+    print("call myint")
     for k, v in argvs.items():
         print(k, v, type(v))
 
-@cli.command()
+@cli.command(help="test for different types of click.Path()")
 @click.argument("default", type=click.Path(), nargs=-1)
 @click.option("--file_path", type=click.Path(file_okay=True, dir_okay=False), help="select a file")
 @click.option("--no_exist_path", type=click.Path(file_okay=False, dir_okay=False), help="select a file")
@@ -71,7 +73,7 @@ def pathtest(**argvs):
     for k, v in argvs.items():
         print(k, v, type(v))
 
-@cli.command(cls=quick.GCommand, new_thread=True)
+@cli.command(cls=quick.GCommand, new_thread=True, help="test for new_thread which creates a worker threads for called command")
 @click.option("--sleep_time", type=click.IntRange(0, 20), help='sleep time', cls=quick.GOption, show_name="睡觉时间")
 def sleep(sleep_time):
     time.sleep(sleep_time)
@@ -86,5 +88,5 @@ def option_gui():
 if __name__ == "__main__":
     # quick.gui_it(example_cmd, run_exit=True)
     # option_gui()
-    quick.gui_it(cli, run_exit=False, new_thread=False)
+    quick.gui_it(cli, run_exit=False, new_thread=False, style="qdarkstyle")
     # cli()
