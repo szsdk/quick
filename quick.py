@@ -1,22 +1,83 @@
 import sys
-import warnings
 from functools import partial
+import math
+
+import click
 
 from PyQt5 import QtGui
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
+try:
+    import qdarkstyle
+    _has_qdarkstyle = True
+except ModuleNotFoundError:
+    _has_qdarkstyle = False
 
-import click
-import math
 
 _GTypeRole = QtCore.Qt.UserRole
 _missing = object()
+
+class GStyle(object):
+    _base_style = """
+        ._OptionLabel {
+            font-size: 14px;
+            font: bold;
+            font-family: monospace;
+            }
+        ._HelpLabel {
+            font-family: serif;
+            font-size: 12px;
+            }
+        ._InputLineEdit{
+            font-size: 14px;
+            }
+        ._InputCheckBox{
+            font-size: 14px;
+            }
+        ._InputSpinBox{
+            font-size: 14px;
+            }
+        ._InputTabWidget{
+            font: bold;
+            }
+        .GListView{
+            font-size: 14px;
+            }
+        QToolTip{
+            font-family: serif;
+            }
+        """
+    def __init__(self, style=""):
+        if not GStyle.check_style(style):
+            self.text_color = "black"
+            self.placehoder_color = "#898b8d"
+            self.stylesheet = GStyle._base_style
+        elif style == "qdarkstyle":
+            self.text_color = '#eff0f1'
+            self.placehoder_color = "#898b8d"
+            self.stylesheet = qdarkstyle.load_stylesheet_pyqt5() +\
+                    GStyle._base_style +\
+                    """
+                    .GListView{
+                        padding: 5px;
+                        }
+                    """
+
+
+    @staticmethod
+    def check_style(style):
+        if style == "qdarkstyle":
+            return _has_qdarkstyle
+        return False
+
+_gstyle = GStyle()
+
 
 class GListView(QtWidgets.QListView):
     def __init__(self, opt):
         super(GListView, self).__init__()
         self.nargs = opt.nargs
-        self.model = GItemModel(max(1,opt.nargs), parent=self, opt_type=opt.type, default=opt.default)
+        self.model = GItemModel(max(1, opt.nargs), parent=self, opt_type=opt.type, default=opt.default)
         self.setModel(self.model)
         self.delegate = GEditDelegate(self)
         self.setItemDelegate(self.delegate)
@@ -43,20 +104,22 @@ class GListView(QtWidgets.QListView):
 
 class GItemModel(QtGui.QStandardItemModel):
     def __init__(self, n, parent=None, opt_type=click.STRING, default=None):
-        super(QtGui.QStandardItemModel, self).__init__(n, 1, parent)
+        super(QtGui.QStandardItemModel, self).__init__(0, 1, parent)
         self.type = opt_type
         for row in range(n):
-            index = self.index(row, 0, QtCore.QModelIndex())
-            if default is None or default == "":
-                self.setData(index, QtGui.QBrush(QtGui.QColor(100,100,100)),
-                        role=QtCore.Qt.ForegroundRole)
+            if hasattr(default, "__len__"):
+                self.insertRow(row, default[row])
             else:
-                self.setData(index, default[row])
+                self.insertRow(row, default)
 
-    def insertRow(self, idx):
+    def insertRow(self, idx, val=""):
         super(GItemModel, self).insertRow(idx)
+
         index = self.index(idx, 0, QtCore.QModelIndex())
-        self.setData(index, QtGui.QBrush(QtGui.QColor(100,100,100)),  role=QtCore.Qt.ForegroundRole)
+        if val is None or val == "":
+            self.setData(index, QtGui.QBrush(QtGui.QColor(_gstyle.placehoder_color)),  role=QtCore.Qt.ForegroundRole)
+        else:
+            self.setData(index, val)
 
 
     def data(self, index, role=QtCore.Qt.DisplayRole):
@@ -75,7 +138,6 @@ class GItemModel(QtGui.QStandardItemModel):
 
         if role == _GTypeRole:
             tp = click.STRING
-            print("type:", self.type)
             if isinstance(self.type, click.types.Tuple):
                 row = index.row()
                 if 0 <= row < len(self.type.types):
@@ -105,21 +167,15 @@ class GEditDelegate(QtWidgets.QStyledItemDelegate):
     def setModelData(self, editor, model, index):
         data_str = editor.text()
         if data_str == "" or data_str is None:
-            model.setData(index, QtGui.QBrush(QtGui.QColor(100,100,100)),  role=QtCore.Qt.ForegroundRole)
+            model.setData(index, QtGui.QBrush(QtGui.QColor(_gstyle.placehoder_color)),  role=QtCore.Qt.ForegroundRole)
         else:
-            model.setData(index, QtGui.QBrush(QtGui.QColor('black')),  role=QtCore.Qt.ForegroundRole)
+            model.setData(index, QtGui.QBrush(QtGui.QColor(_gstyle.text_color)),  role=QtCore.Qt.ForegroundRole)
         QtWidgets.QStyledItemDelegate.setModelData(self, editor, model, index)
 
 def generate_label(opt):
     show_name = getattr(opt, 'show_name', _missing)
     show_name = opt.name if show_name is _missing else show_name
     param = _OptionLabel(show_name)
-    # else:
-        # param = QtWidgets.QLabel(opt.name)
-    # if hasattr(opt, "show_name") :
-        # param = QtWidgets.QLabel(opt.show_name)
-    # else:
-        # param = QtWidgets.QLabel(opt.name)
     param.setToolTip(opt.help)
     return param
 
@@ -192,7 +248,6 @@ class GLineEdit_path(QtWidgets.QLineEdit):
 
     @staticmethod
     def from_option(opt, parent=None):
-        print(type(opt))
         return GLineEdit_path(
             parent=parent,
             exists=opt.exists,
@@ -413,7 +468,6 @@ def opt_to_widget(opt):
         elif isinstance(opt.type, click.types.Choice):
             return GChoiceComboBox.to_widget(opt.type, opt)
         elif isinstance(opt.type, click.types.Path):
-            print(opt.type.__dict__)
             return GPathGLindEidt_path.to_widget(opt.type, opt)
         elif isinstance(opt.type, click.types.IntRange):
             return GIntRangeGSlider.to_widget(opt.type, opt)
@@ -575,7 +629,6 @@ class App(QtWidgets.QWidget):
         if isinstance(func, click.MultiCommand):
             tabs = _InputTabWidget()
             for cmd, f in func.commands.items():
-                print(cmd)
                 sub_opt_set = self.initCommandUI(f, run_exit, parent_layout=opt_set)
                 tab = QtWidgets.QWidget()
                 tab.setLayout(sub_opt_set)
@@ -585,10 +638,10 @@ class App(QtWidgets.QWidget):
                     )
             return opt_set
         elif isinstance(func, click.Command):
-            new_thread = func.new_thread if hasattr(func, "new_thread") else self.new_thread 
+            new_thread = getattr(func, "new_thread", self.new_thread)
             opt_set.add_cmd_buttons( args=[
-                {'label':'&run', 'cmd_slot': partial(self.run_cmd, new_thread=new_thread), "tooltip":"run command"},
-                {'label':'&copy', 'cmd_slot': self.copy_cmd, "tooltip":"copy command to clipboard"},
+                {'label':'&Run', 'cmd_slot': partial(self.run_cmd, new_thread=new_thread), "tooltip":"run command"},
+                {'label':'&Copy', 'cmd_slot': self.copy_cmd, "tooltip":"copy command to clipboard"},
                 ])
             return opt_set
 
@@ -596,7 +649,6 @@ class App(QtWidgets.QWidget):
         self.run_exit = run_exit
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
-        print(self.new_thread)
         self.setLayout(self.initCommandUI(self.func, run_exit, ))
         self.show()
 
@@ -610,7 +662,7 @@ class App(QtWidgets.QWidget):
 
         msg = QtWidgets.QMessageBox()
         msg.setIcon(QtWidgets.QMessageBox.Information)
-        msg.setText(f"copy '{cmd_text}' to clipboard'")
+        msg.setText(f"copy '{cmd_text}' to clipboard")
         msg.exec_()
 
     def run_cmd(self, new_thread):
@@ -621,38 +673,14 @@ class App(QtWidgets.QWidget):
             runcmd.run()
 
 
-def gui_it(click_func, run_exit:bool=False, new_thread:bool=True)->None:
+def gui_it(click_func, run_exit:bool=False, new_thread:bool=True, style="qdarkstyle")->None:
     """ `new_thread` is used for qt-based func, like matplotlib"""
     # TODO: This is no a good place for argument `new_thread` because
     # some func may not use qt in the function.
+    global _gstyle
+    _gstyle = GStyle(style)
     app = QtWidgets.QApplication(sys.argv)
-    app.setStyleSheet("""
-        ._OptionLabel {
-            font-size: 14px;
-            font: bold;
-            }
-        ._HelpLabel {
-            font-size: 12px;
-            }
-        ._InputLineEdit{
-            font-size: 14px;
-            }
-        ._InputCheckBox{
-            font-size: 14px;
-            }
-        ._InputSpinBox{
-            font-size: 14px;
-            }
-        ._InputTabWidget{
-            font: bold;
-            }
-        .GListView{
-            font-size: 14px;
-            }
-        .QToolTip{
-            opacity: 0
-            }
-        """)
+    app.setStyleSheet(_gstyle.stylesheet)
     ex = App(click_func, run_exit, new_thread)
     sys.exit(app.exec_())
 
