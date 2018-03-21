@@ -113,7 +113,7 @@ class GEditDelegate(QtWidgets.QStyledItemDelegate):
 def generate_label(opt):
     show_name = getattr(opt, 'show_name', _missing)
     show_name = opt.name if show_name is _missing else show_name
-    param = QtWidgets.QLabel(show_name)
+    param = _OptionLabel(show_name)
     # else:
         # param = QtWidgets.QLabel(opt.name)
     # if hasattr(opt, "show_name") :
@@ -348,8 +348,8 @@ class GTupleGListView(click.Tuple):
 
         def to_command():
             _ = [opt.opts[0]]
-            for idx in range(model.rowCount()):
-                _.append(model.item(idx).text())
+            for idx in range(view.model.rowCount()):
+                _.append(view.model.item(idx).text())
             return _
         return [generate_label(opt), view], to_command
 
@@ -361,7 +361,8 @@ def multi_text_arguement(opt):
         for idx in range(value.model.rowCount()):
             _.append(value.model.item(idx).text())
         return _
-    return [QtWidgets.QLabel(opt.name), value], to_command
+    # return [QtWidgets.QLabel(opt.name), value], to_command
+    return [_OptionLabel(opt.name), value], to_command
 
 def select_type_validator(tp: click.types.ParamType)-> QtGui.QValidator:
     """ select the right validator for `tp`"""
@@ -449,6 +450,9 @@ class _InputTabWidget(QtWidgets.QTabWidget):
     pass
 
 class _HelpLabel(QtWidgets.QLabel):
+    pass
+
+class _OptionLabel(QtWidgets.QLabel):
     pass
 
 class _InputLineEdit(QtWidgets.QLineEdit):
@@ -623,8 +627,9 @@ def gui_it(click_func, run_exit:bool=False, new_thread:bool=True)->None:
     # some func may not use qt in the function.
     app = QtWidgets.QApplication(sys.argv)
     app.setStyleSheet("""
-        .QLabel {
+        ._OptionLabel {
             font-size: 14px;
+            font: bold;
             }
         ._HelpLabel {
             font-size: 12px;
@@ -643,6 +648,9 @@ def gui_it(click_func, run_exit:bool=False, new_thread:bool=True)->None:
             }
         .GListView{
             font-size: 14px;
+            }
+        .QToolTip{
+            opacity: 0
             }
         """)
     ex = App(click_func, run_exit, new_thread)
