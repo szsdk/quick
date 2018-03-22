@@ -20,28 +20,32 @@ _missing = object()
 class GStyle(object):
     _base_style = """
         ._OptionLabel {
-            font-size: 14px;
+            font-size: 16px;
             font: bold;
             font-family: monospace;
             }
         ._HelpLabel {
             font-family: serif;
-            font-size: 12px;
+            font-size: 14px;
+            }
+        ._InputComboBox{
+            font-size: 16px;
             }
         ._InputLineEdit{
-            font-size: 14px;
+            font-size: 16px;
             }
         ._InputCheckBox{
-            font-size: 14px;
+            font-size: 16px;
             }
         ._InputSpinBox{
-            font-size: 14px;
+            font-size: 16px;
             }
         ._InputTabWidget{
             font: bold;
+            font-size: 16px;
             }
         .GListView{
-            font-size: 14px;
+            font-size: 16px;
             }
         QToolTip{
             font-family: serif;
@@ -184,7 +188,7 @@ def generate_label(opt):
     show_name = getattr(opt, 'show_name', _missing)
     show_name = opt.name if show_name is _missing else show_name
     param = _OptionLabel(show_name)
-    param.setToolTip(opt.help)
+    param.setToolTip(getattr(opt, 'help', None))
     return param
 
 
@@ -194,7 +198,7 @@ class GStringLineEditor(click.types.StringParamType):
         value.setPlaceholderText(self.name)
         if opt.default:
             value.setText(str(opt.default))
-        if opt.hide_input:
+        if getattr(opt, "hide_input", False):
             value.setEchoMode(QtWidgets.QLineEdit.Password)
         value.setValidator(validator)
 
@@ -391,7 +395,7 @@ def bool_flag_option(opt):
 
 class GChoiceComboBox(click.types.Choice):
     def to_widget(self, opt):
-        cb = QtWidgets.QComboBox()
+        cb = _InputComboBox()
         cb.addItems(self.choices)
 
         def to_command():
@@ -441,7 +445,7 @@ def select_opt_validator(opt):
     return select_type_validator(opt.type)
 
 def text_arguement(opt):
-    param = QtWidgets.QLabel(opt.name)
+    param = _OptionLabel(opt.name)
     value = QtWidgets.QLineEdit()
     if opt.default:
         value.setText(str(opt.default))
@@ -461,17 +465,14 @@ def opt_to_widget(opt):
     elif hasattr(opt.type, 'to_widget'):
             return opt.type.to_widget()
 
-    if type(opt) == click.core.Argument:
-        if opt.nargs > 1 or opt.nargs == -1:
+    if isinstance(opt, click.core.Argument) and (opt.nargs > 1 or opt.nargs == -1):
             return multi_text_arguement(opt)
-        else:
-            return text_arguement(opt)
     else:
         if opt.nargs > 1 :
             return GTupleGListView.to_widget(opt.type, opt)
-        elif opt.is_bool_flag:
+        elif getattr(opt, "is_bool_flag", False):
             return bool_flag_option(opt)
-        elif opt.count:
+        elif getattr(opt, "count", False):
             return count_option(opt)
         elif isinstance(opt.type, click.types.Choice):
             return GChoiceComboBox.to_widget(opt.type, opt)
@@ -512,6 +513,9 @@ class _Spliter(QtWidgets.QFrame):
     def __init__(self, parent=None):
         super(_Spliter, self).__init__( parent=parent)
         self.setFrameShape(QtWidgets.QFrame.HLine)
+
+class _InputComboBox(QtWidgets.QComboBox):
+    pass 
 
 class _InputTabWidget(QtWidgets.QTabWidget):
     pass
@@ -624,16 +628,13 @@ class GOption(click.Option):
         self.show_name = show_name
 
 class App(QtWidgets.QWidget):
-    def __init__(self, func, run_exit, new_thread):
+    def __init__(self, func, run_exit, new_thread, left=10, top=10,
+            width=400, height=140):
         super().__init__()
         self.new_thread = new_thread
         self.title = func.name
         self.func = func
-        self.left = 10
-        self.top = 10
-        self.width = 400
-        self.height = 140
-        self.initUI(run_exit)
+        self.initUI(run_exit, QtCore.QRect(left, top, width, height))
         self.threadpool = QtCore.QThreadPool()
 
     def initCommandUI(self, func, run_exit, parent_layout=None):
@@ -651,16 +652,28 @@ class App(QtWidgets.QWidget):
             return opt_set
         elif isinstance(func, click.Command):
             new_thread = getattr(func, "new_thread", self.new_thread)
-            opt_set.add_cmd_buttons( args=[
-                {'label':'&Run', 'cmd_slot': partial(self.run_cmd, new_thread=new_thread), "tooltip":"run command"},
-                {'label':'&Copy', 'cmd_slot': self.copy_cmd, "tooltip":"copy command to clipboard"},
-                ])
+            opt_set.add_cmd_buttons( args=
+                    [
+                        {
+                            'label':'&Run',
+                            'cmd_slot': partial(self.run_cmd,\
+                                    new_thread=new_thread),
+                            "tooltip":"run command"
+                            },
+                        {
+                            'label':'&Copy',
+                            'cmd_slot': self.copy_cmd,
+                            "tooltip":"copy command to clipboard"
+                            },
+                        ]
+                    )
             return opt_set
 
-    def initUI(self, run_exit):
+    def initUI(self, run_exit, geometry):
         self.run_exit = run_exit
         self.setWindowTitle(self.title)
-        self.setGeometry(self.left, self.top, self.width, self.height)
+        # self.setGeometry(self.left, self.top, self.width, self.height)
+        self.setGeometry(geometry)
         self.setLayout(self.initCommandUI(self.func, run_exit, ))
         self.show()
 
@@ -685,15 +698,13 @@ class App(QtWidgets.QWidget):
             runcmd.run()
 
 
-def gui_it(click_func, run_exit:bool=False, new_thread:bool=True, style="qdarkstyle")->None:
+def gui_it(click_func, style="qdarkstyle", **argvs)->None:
     """ `new_thread` is used for qt-based func, like matplotlib"""
-    # TODO: This is no a good place for argument `new_thread` because
-    # some func may not use qt in the function.
     global _gstyle
     _gstyle = GStyle(style)
     app = QtWidgets.QApplication(sys.argv)
     app.setStyleSheet(_gstyle.stylesheet)
-    ex = App(click_func, run_exit, new_thread)
+    ex = App(click_func, **argvs)
     sys.exit(app.exec_())
 
 

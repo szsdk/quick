@@ -88,5 +88,6 @@ def option_gui():
 if __name__ == "__main__":
     # quick.gui_it(example_cmd, run_exit=True)
     # option_gui()
-    quick.gui_it(cli, run_exit=False, new_thread=False, style="qdarkstyle")
+    quick.gui_it(cli, run_exit=False, new_thread=False,
+            style="qdarkstyle", width=450)
     # cli()
