@@ -12,6 +12,18 @@ python setup.py install
 
 ## Usage
 
+### Overview
+Open your terminal, go into the downloaded source folder and input
+```python
+python test.py
+```
+Then click "Run" button. You will see something like this.
+<p align="center">
+<img src="https://user-images.githubusercontent.com/6657200/38025934-bf93013c-32bc-11e8-8d12-91411b28946e.png" alt="screenshot" style="max-width:100%;" width="400">
+</p>
+
+Open `test.py` to see what the original click-based program looks like.
+
 ### Basic usage
 
 This package could draw the gui for a click-based CLI program with a very
