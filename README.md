@@ -1,8 +1,7 @@
 # QUICK
 
-This project is inspired by [Gooey](https://github.com/chriskiehl/Gooey),
-which generate GUI for a classical python `argparse`-based command line
-program.
+A real quick GUI generator for [click](https://github.com/pallets/click). Inspired by [Gooey](
+https://github.com/chriskiehl/Gooey), the GUI generator for classical Python `argparse`-based command line programs.
 
 ## Install
 
