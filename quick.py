@@ -113,6 +113,18 @@ class GListView(QtWidgets.QListView):
                         self.model.removeRow(i.row())
         super(GListView, self).keyPressEvent(e)
 
+class GChainListView(QtGui.QStandardItemModel):
+    def __init__(self, opt):
+        super(GListView, self).__init__()
+        # self.nargs = opt.nargs
+        # self.model = GItemModel(max(1, opt.nargs), parent=self, opt_type=opt.type, default=opt.default)
+    def key_press(self, e):
+        if e.key() == QtCore.Qt.Key_D:
+            si = self.selectedIndexes()
+            if self.model.rowCount() > 1:
+                for i in si:
+                    self.model.removeRow(i.row())
+        super(GListView, self).keyPressEvent(e)
 
 class GItemModel(QtGui.QStandardItemModel):
     def __init__(self, n, parent=None, opt_type=click.STRING, default=None):
@@ -281,6 +293,8 @@ class GPathGLindEidt_path(click.types.Path):
         def to_command():
             return [opt.opts[0], value.text()]
         return [generate_label(opt), value], to_command
+    def from_command():
+        pass
 
 class _GLabeledSlider(QtWidgets.QSlider):
     def __init__(self, min, max, val):
@@ -488,18 +502,18 @@ def opt_to_widget(opt):
             return GStringLineEditor.to_widget(opt.type, opt)
 
 
-def layout_append_opts(layout, opts):
-    params_func = []
-    i = 0
-    for i, para in enumerate(opts):
-        widget, value_func = opt_to_widget(para)
-        params_func.append(value_func)
-        for idx, w in enumerate(widget):
-            if isinstance(w, QtWidgets.QLayout):
-                layout.addLayout(w, i, idx)
-            else:
-                layout.addWidget(w, i, idx)
-    return layout, params_func
+# def layout_append_opts(layout, opts):
+    # params_func = []
+    # i = 0
+    # for i, para in enumerate(opts):
+        # widget, value_func = opt_to_widget(para)
+        # params_func.append(value_func)
+        # for idx, w in enumerate(widget):
+            # if isinstance(w, QtWidgets.QLayout):
+                # layout.addLayout(w, i, idx)
+            # else:
+                # layout.addWidget(w, i, idx)
+    # return layout, params_func
 
 def generate_sysargv(cmd_list):
     argv_list = []
@@ -637,23 +651,42 @@ class App(QtWidgets.QWidget):
         self.initUI(run_exit, QtCore.QRect(left, top, width, height))
         self.threadpool = QtCore.QThreadPool()
 
-    def initCommandUI(self, func, run_exit, parent_layout=None):
+    def initCommandUI(self, func, run_exit, parent_layout=None, chain=False):
         opt_set = OptionWidgetSet(func, run_exit, parent_layout=parent_layout)
+        chain = getattr(func, 'chain', chain)
         if isinstance(func, click.MultiCommand):
             tabs = _InputTabWidget()
             for cmd, f in func.commands.items():
-                sub_opt_set = self.initCommandUI(f, run_exit, parent_layout=opt_set)
+                sub_opt_set = self.initCommandUI(
+                        f, run_exit, parent_layout=opt_set, chain=chain
+                        )
                 tab = QtWidgets.QWidget()
                 tab.setLayout(sub_opt_set)
                 tabs.addTab(tab, cmd)
             opt_set.addWidget(
                     tabs, opt_set.rowCount(), 0, 1, 2
                     )
+            if chain:
+
+                tmp_list = QtWidgets.QListWidget()
+                # if pos is None:
+                pos = opt_set.rowCount()+1, 0
+                opt_set.addWidget(
+                    tmp_list, pos[0], pos[1]
+                )
+                opt_set.add_cmd_buttons( args=
+                        [
+                            {
+                                'label': 'Run',
+                                'cmd_slot': self.copy_cmd,
+                                'tooltip': "run all"
+                            }
+                        ]
+                    )
             return opt_set
         elif isinstance(func, click.Command):
             new_thread = getattr(func, "new_thread", self.new_thread)
-            opt_set.add_cmd_buttons( args=
-                    [
+            button_cmd = [
                         {
                             'label':'&Run',
                             'cmd_slot': partial(self.run_cmd,\
@@ -666,7 +699,15 @@ class App(QtWidgets.QWidget):
                             "tooltip":"copy command to clipboard"
                             },
                         ]
+            if chain:
+                button_cmd.append(
+                        {
+                            'label': '&Add',
+                            'cmd_slot': self.copy_cmd,
+                            'tooltip': "add to chain"
+                        }
                     )
+            opt_set.add_cmd_buttons(args= button_cmd)
             return opt_set
 
     def initUI(self, run_exit, geometry):
@@ -704,7 +745,10 @@ def gui_it(click_func, style="qdarkstyle", **argvs)->None:
     _gstyle = GStyle(style)
     app = QtWidgets.QApplication(sys.argv)
     app.setStyleSheet(_gstyle.stylesheet)
-    ex = App(click_func, **argvs)
+
+    argvs.setdefault('run_exit', False)
+    argvs.setdefault('new_thread', False)
+    App(click_func, **argvs)
     sys.exit(app.exec_())
 
 
