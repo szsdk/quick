@@ -95,5 +95,8 @@ if __name__ == "__main__":
 ### Writing you own widget
 
 
+## For developer
+Travis CI is used for continuous integration.
+
 ## Copyright
 see LICENCE
