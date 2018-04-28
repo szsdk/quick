@@ -1,0 +1,13 @@
+language: python
+sudo: required
+dist: trusty
+
+python:
+    - "3.6"
+
+install:
+    - sudo apt-get update
+    - sudo apt-get -y install python3-pyqt5
+    - pip install -r requirements.txt
+script:
+    - python3 test/test_all.py
