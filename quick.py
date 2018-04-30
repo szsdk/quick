@@ -490,16 +490,18 @@ def opt_to_widget(opt):
 
 def layout_append_opts(layout, opts):
     params_func = []
+    widgets = []
     i = 0
     for i, para in enumerate(opts):
         widget, value_func = opt_to_widget(para)
+        widgets.append(widget)
         params_func.append(value_func)
         for idx, w in enumerate(widget):
             if isinstance(w, QtWidgets.QLayout):
                 layout.addLayout(w, i, idx)
             else:
                 layout.addWidget(w, i, idx)
-    return layout, params_func
+    return layout, params_func, widgets
 
 def generate_sysargv(cmd_list):
     argv_list = []
@@ -547,7 +549,8 @@ class OptionWidgetSet(QtWidgets.QGridLayout):
             self.addWidget(label, 0, 0, 1, 2)
             frame = _Spliter()
             self.addWidget(frame, 1, 0, 1, 2)
-        self.params_func = self.append_opts(self.func.params)
+        self.params_func, self.widgets = self.append_opts(self.func.params)
+        
 
     def add_sysargv(self):
         if hasattr(self.parent_layout, "add_sysargv"):
@@ -558,8 +561,10 @@ class OptionWidgetSet(QtWidgets.QGridLayout):
 
     def append_opts(self, opts):
         params_func = []
+        widgets = []
         for i, para in enumerate(opts, self.rowCount()):
             widget, value_func = opt_to_widget(para)
+            widgets.append(widget)
             params_func.append(value_func)
             for idx, w in enumerate(widget):
                 if isinstance(w, QtWidgets.QLayout):
@@ -567,7 +572,7 @@ class OptionWidgetSet(QtWidgets.QGridLayout):
                 else:
                     self.addWidget(w, i, idx)
             self.setRowStretch(i, 5)
-        return params_func
+        return params_func, widgets
 
     def generate_cmd_button(self, label, cmd_slot, tooltip=""):
         button = QtWidgets.QPushButton(label)
@@ -649,7 +654,7 @@ class App(QtWidgets.QWidget):
             opt_set.addWidget(
                     tabs, opt_set.rowCount(), 0, 1, 2
                     )
-            return opt_set
+            # return opt_set
         elif isinstance(func, click.Command):
             new_thread = getattr(func, "new_thread", self.new_thread)
             opt_set.add_cmd_buttons( args=
@@ -667,7 +672,7 @@ class App(QtWidgets.QWidget):
                             },
                         ]
                     )
-            return opt_set
+        return opt_set
 
     def initUI(self, run_exit, geometry):
         self.run_exit = run_exit
