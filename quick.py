@@ -537,9 +537,9 @@ class _InputCheckBox(QtWidgets.QCheckBox):
 class _InputSpinBox(QtWidgets.QSpinBox):
     pass
 
-class OptionWidgetSet(QtWidgets.QGridLayout):
+class CommandLayout(QtWidgets.QGridLayout):
     def __init__(self, func, run_exit, parent_layout=None):
-        super(OptionWidgetSet, self).__init__()
+        super(CommandLayout, self).__init__()
         self.parent_layout = parent_layout
         self.func = func
         self.run_exit = run_exit
@@ -643,7 +643,7 @@ class App(QtWidgets.QWidget):
         self.threadpool = QtCore.QThreadPool()
 
     def initCommandUI(self, func, run_exit, parent_layout=None):
-        opt_set = OptionWidgetSet(func, run_exit, parent_layout=parent_layout)
+        opt_set = CommandLayout(func, run_exit, parent_layout=parent_layout)
         if isinstance(func, click.MultiCommand):
             tabs = _InputTabWidget()
             for cmd, f in func.commands.items():
@@ -679,7 +679,8 @@ class App(QtWidgets.QWidget):
         self.setWindowTitle(self.title)
         # self.setGeometry(self.left, self.top, self.width, self.height)
         self.setGeometry(geometry)
-        self.setLayout(self.initCommandUI(self.func, run_exit, ))
+        self.opt_set = self.initCommandUI(self.func, run_exit, )
+        self.setLayout(self.opu_set)
         self.show()
 
 
