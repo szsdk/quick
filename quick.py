@@ -680,7 +680,7 @@ class App(QtWidgets.QWidget):
         # self.setGeometry(self.left, self.top, self.width, self.height)
         self.setGeometry(geometry)
         self.opt_set = self.initCommandUI(self.func, run_exit, )
-        self.setLayout(self.opu_set)
+        self.setLayout(self.opt_set)
         self.show()
 
 
