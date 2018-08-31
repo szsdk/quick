@@ -1,1 +1,2 @@
 click>=6.5
+PyQt5
