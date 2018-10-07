@@ -710,6 +710,11 @@ def gui_it(click_func, style="qdarkstyle", **argvs)->None:
     _gstyle = GStyle(style)
     app = QtWidgets.QApplication(sys.argv)
     app.setStyleSheet(_gstyle.stylesheet)
+
+    # set the default value for argvs
+    argvs["run_exit"] = argvs.get("run_exit", False)
+    argvs["new_thread"] = argvs.get("new_thread", False)
+
     ex = App(click_func, **argvs)
     sys.exit(app.exec_())
 
