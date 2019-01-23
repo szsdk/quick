@@ -465,7 +465,10 @@ def opt_to_widget(opt):
     elif hasattr(opt.type, 'to_widget'):
             return opt.type.to_widget()
 
-    if isinstance(opt, click.core.Argument) and (opt.nargs > 1 or opt.nargs == -1):
+    if isinstance(opt, click.core.Argument):
+        if opt.nargs == 1:
+            return text_arguement(opt)
+        elif (opt.nargs > 1 or opt.nargs == -1):
             return multi_text_arguement(opt)
     else:
         if opt.nargs > 1 :
@@ -517,7 +520,7 @@ class _Spliter(QtWidgets.QFrame):
         self.setFrameShape(QtWidgets.QFrame.HLine)
 
 class _InputComboBox(QtWidgets.QComboBox):
-    pass 
+    pass
 
 class _InputTabWidget(QtWidgets.QTabWidget):
     pass
@@ -550,7 +553,7 @@ class CommandLayout(QtWidgets.QGridLayout):
             frame = _Spliter()
             self.addWidget(frame, 1, 0, 1, 2)
         self.params_func, self.widgets = self.append_opts(self.func.params)
-        
+
 
     def add_sysargv(self):
         if hasattr(self.parent_layout, "add_sysargv"):
