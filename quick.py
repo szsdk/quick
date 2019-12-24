@@ -89,7 +89,7 @@ class GListView(QtWidgets.QListView):
     def __init__(self, opt):
         super(GListView, self).__init__()
         self.nargs = opt.nargs
-        self.model = GItemModel(max(1, opt.nargs), parent=self, opt_type=opt.type, default=opt.default)
+        self.model = GItemModel(opt.nargs, parent=self, opt_type=opt.type, default=opt.default)
         self.setModel(self.model)
         self.delegate = GEditDelegate(self)
         self.setItemDelegate(self.delegate)
@@ -102,10 +102,14 @@ class GListView(QtWidgets.QListView):
             )
 
     def key_press(self, e):
+        print(e.key())
         if self.nargs == -1:
             if e.key() == QtCore.Qt.Key_A:
-                for i in self.selectedIndexes():
-                    self.model.insertRow(i.row()+1)
+                if len(self.selectedIndexes()) == 0:
+                    self.model.insertRow(0)
+                else:
+                    for i in self.selectedIndexes():
+                        self.model.insertRow(i.row()+1)
             if e.key() == QtCore.Qt.Key_D:
                 si = self.selectedIndexes()
                 if self.model.rowCount() > 1:
@@ -427,6 +431,10 @@ def multi_text_arguement(opt):
         _ = []
         for idx in range(value.model.rowCount()):
             _.append(value.model.item(idx).text())
+        print(opt.required, value.model.rowCount())
+        # if opt.required and value.model.rowCount() == 0:
+            # raise click.exceptions.BadParameter("Required")
+        # print(opt.__dict__)
         return _
     # return [QtWidgets.QLabel(opt.name), value], to_command
     return [_OptionLabel(opt.name), value], to_command
