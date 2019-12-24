@@ -303,7 +303,11 @@ class _GLabeledSlider(QtWidgets.QSlider):
         l += 1
         return QtWidgets.QLabel('0'*l)
 
-
+def argument_command(to_command):
+    def tc():
+        a = to_command()
+        return a[1:]
+    return tc
 
 class GSlider(QtWidgets.QHBoxLayout):
     def __init__(self, min=0, max=10, default=None,  *args, **kwargs):
@@ -429,7 +433,6 @@ def multi_text_arguement(opt):
         _ = []
         for idx in range(value.model.rowCount()):
             _.append(value.model.item(idx).text())
-        print(opt.required, value.model.rowCount())
         # if opt.required and value.model.rowCount() == 0:
             # raise click.exceptions.BadParameter("Required")
         # print(opt.__dict__)
@@ -450,20 +453,27 @@ def select_opt_validator(opt):
     """ select the right validator for `opt`"""
     return select_type_validator(opt.type)
 
-def text_arguement(opt):
-    param = _OptionLabel(opt.name)
-    value = QtWidgets.QLineEdit()
-    if opt.default:
-        value.setText(str(opt.default))
-    # add validator
-    value.setValidator(select_opt_validator(opt))
-
-    def to_command():
-        return [value.text()]
-    return [param, value], to_command
-
-
 def opt_to_widget(opt):
+    if opt.nargs > 1 :
+        return GTupleGListView.to_widget(opt.type, opt)
+    elif getattr(opt, "is_bool_flag", False):
+        return bool_flag_option(opt)
+    elif getattr(opt, "count", False):
+        return count_option(opt)
+    elif isinstance(opt.type, click.types.Choice):
+        return GChoiceComboBox.to_widget(opt.type, opt)
+    elif isinstance(opt.type, click.types.Path):
+        return GPathGLindEidt_path.to_widget(opt.type, opt)
+    elif isinstance(opt.type, click.types.IntRange):
+        return GIntRangeGSlider.to_widget(opt.type, opt)
+    elif isinstance(opt.type, click.types.IntParamType):
+        return GIntLineEditor.to_widget(opt.type, opt)
+    elif isinstance(opt.type, click.types.FloatParamType):
+        return GFloatLineEditor.to_widget(opt.type, opt)
+    else:
+        return GStringLineEditor.to_widget(opt.type, opt)
+
+def _to_widget(opt):
     #customed widget
     if isinstance(opt.type, click.types.FuncParamType):
         if hasattr(opt.type.func, 'to_widget'):
@@ -473,28 +483,12 @@ def opt_to_widget(opt):
 
     if isinstance(opt, click.core.Argument):
         if opt.nargs == 1:
-            return text_arguement(opt)
+            w, tc = opt_to_widget(opt)
+            return w, argument_command(tc)
         elif (opt.nargs > 1 or opt.nargs == -1):
             return multi_text_arguement(opt)
     else:
-        if opt.nargs > 1 :
-            return GTupleGListView.to_widget(opt.type, opt)
-        elif getattr(opt, "is_bool_flag", False):
-            return bool_flag_option(opt)
-        elif getattr(opt, "count", False):
-            return count_option(opt)
-        elif isinstance(opt.type, click.types.Choice):
-            return GChoiceComboBox.to_widget(opt.type, opt)
-        elif isinstance(opt.type, click.types.Path):
-            return GPathGLindEidt_path.to_widget(opt.type, opt)
-        elif isinstance(opt.type, click.types.IntRange):
-            return GIntRangeGSlider.to_widget(opt.type, opt)
-        elif isinstance(opt.type, click.types.IntParamType):
-            return GIntLineEditor.to_widget(opt.type, opt)
-        elif isinstance(opt.type, click.types.FloatParamType):
-            return GFloatLineEditor.to_widget(opt.type, opt)
-        else:
-            return GStringLineEditor.to_widget(opt.type, opt)
+        return opt_to_widget(opt)
 
 
 def layout_append_opts(layout, opts):
@@ -502,7 +496,7 @@ def layout_append_opts(layout, opts):
     widgets = []
     i = 0
     for i, para in enumerate(opts):
-        widget, value_func = opt_to_widget(para)
+        widget, value_func = _to_widget(para)
         widgets.append(widget)
         params_func.append(value_func)
         for idx, w in enumerate(widget):
@@ -572,7 +566,7 @@ class CommandLayout(QtWidgets.QGridLayout):
         params_func = []
         widgets = []
         for i, para in enumerate(opts, self.rowCount()):
-            widget, value_func = opt_to_widget(para)
+            widget, value_func = _to_widget(para)
             widgets.append(widget)
             params_func.append(value_func)
             for idx, w in enumerate(widget):
@@ -614,11 +608,10 @@ class CommandLayout(QtWidgets.QGridLayout):
         sys.argv = []
 
 class RunCommand(QtCore.QRunnable):
-    def __init__(self, func, run_exit, outputEdit):
+    def __init__(self, func, run_exit):
         super(RunCommand, self).__init__()
         self.func = func
         self.run_exit = run_exit
-        self.outputEdit = outputEdit
 
     @QtCore.pyqtSlot()
     def run(self):
@@ -762,7 +755,7 @@ class App(QtWidgets.QWidget):
         msg.exec_()
 
     def run_cmd(self, new_thread):
-        runcmd = RunCommand(self.func, self.run_exit, self.outputEdit)
+        runcmd = RunCommand(self.func, self.run_exit)
         if new_thread:
             self.threadpool.start(runcmd)
         else:
