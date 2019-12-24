@@ -102,7 +102,6 @@ class GListView(QtWidgets.QListView):
             )
 
     def key_press(self, e):
-        print(e.key())
         if self.nargs == -1:
             if e.key() == QtCore.Qt.Key_A:
                 if len(self.selectedIndexes()) == 0:
@@ -112,9 +111,8 @@ class GListView(QtWidgets.QListView):
                         self.model.insertRow(i.row()+1)
             if e.key() == QtCore.Qt.Key_D:
                 si = self.selectedIndexes()
-                if self.model.rowCount() > 1:
-                    for i in si:
-                        self.model.removeRow(i.row())
+                for i in si:
+                    self.model.removeRow(i.row())
         super(GListView, self).keyPressEvent(e)
 
 
@@ -616,10 +614,11 @@ class CommandLayout(QtWidgets.QGridLayout):
         sys.argv = []
 
 class RunCommand(QtCore.QRunnable):
-    def __init__(self, func, run_exit):
+    def __init__(self, func, run_exit, outputEdit):
         super(RunCommand, self).__init__()
         self.func = func
         self.run_exit = run_exit
+        self.outputEdit = outputEdit
 
     @QtCore.pyqtSlot()
     def run(self):
@@ -632,6 +631,13 @@ class RunCommand(QtCore.QRunnable):
             msg.setIcon(QtWidgets.QMessageBox.Warning)
             msg.setText(bpe.format_message())
             msg.exec_()
+        except Exception as bpe:
+            msg = QtWidgets.QMessageBox()
+            msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.setText(repr(bpe))
+            msg.exec_()
+        # if self.outputEdit is not None:
+            # self.outputEdit.show()
 
 class GCommand(click.Command):
     def __init__(self, new_thread=True, *arg, **args):
@@ -643,15 +649,63 @@ class GOption(click.Option):
         super(GOption, self).__init__(*arg, **args)
         self.show_name = show_name
 
+
+# def normalOutputWritten(t):
+    # """Append text to the QTextEdit."""
+    # Maybe QTextEdit.append() works as well, but this is how I do it:
+    # cursor = text.textCursor()
+    # cursor.movePosition(QtGui.QTextCursor.End)
+    # cursor.insertText(t)
+    # text.setTextCursor(cursor)
+    # text.ensureCursorVisible()
+
+class GuiStream(QtCore.QObject):
+    textWritten = QtCore.pyqtSignal(str)
+    def write(self, text):
+        self.textWritten.emit(str(text))
+
+
+class OutputEdit(QtWidgets.QTextEdit):
+    def print(self, text):
+        cursor = self.textCursor()
+        cursor.movePosition(QtGui.QTextCursor.End)
+        cursor.insertText(text)
+        self.setTextCursor(cursor)
+        self.ensureCursorVisible()
+
+
 class App(QtWidgets.QWidget):
-    def __init__(self, func, run_exit, new_thread, left=10, top=10,
+    def __init__(self, func, run_exit, new_thread, output='gui', left=10, top=10,
             width=400, height=140):
+        """
+        Parameters
+        ----------
+        output : str
+            'gui': [default] redirect screen output to the gui
+            'term': do nothing
+        """
         super().__init__()
         self.new_thread = new_thread
         self.title = func.name
         self.func = func
         self.initUI(run_exit, QtCore.QRect(left, top, width, height))
         self.threadpool = QtCore.QThreadPool()
+        self.outputEdit = self.initOutput(output)
+
+    def initOutput(self, output):
+        if output == 'gui':
+            sys.stdout = GuiStream()
+            sys.stderr = sys.stdout
+            text = OutputEdit()
+            text.setReadOnly(True)
+            sys.stdout.textWritten.connect(text.print)
+            sys.stdout.textWritten.connect(text.show)
+            # sys.stdout.textWritten.connect(text.append)
+            # text.show()
+            return text
+        else:
+            return None
+
 
     def initCommandUI(self, func, run_exit, parent_layout=None):
         opt_set = CommandLayout(func, run_exit, parent_layout=parent_layout)
@@ -708,7 +762,7 @@ class App(QtWidgets.QWidget):
         msg.exec_()
 
     def run_cmd(self, new_thread):
-        runcmd = RunCommand(self.func, self.run_exit)
+        runcmd = RunCommand(self.func, self.run_exit, self.outputEdit)
         if new_thread:
             self.threadpool.start(runcmd)
         else:
@@ -716,7 +770,12 @@ class App(QtWidgets.QWidget):
 
 
 def gui_it(click_func, style="qdarkstyle", **argvs)->None:
-    """ `new_thread` is used for qt-based func, like matplotlib"""
+    """ 
+    Parameters
+    ----------
+    click_func
+    `new_thread` is used for qt-based func, like matplotlib
+    """
     global _gstyle
     _gstyle = GStyle(style)
     app = QtWidgets.QApplication(sys.argv)

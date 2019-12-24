@@ -18,6 +18,11 @@ def norequire(multiarg):
 def require(multiarg):
     print("run:", multiarg)
 
+@cli.command()
+# @click.argument("multiarg", nargs=-1, required=True)
+def error():
+    raise Exception("error")
+
 
 if __name__ == "__main__":
     # quick.gui_it(example_cmd, run_exit=True)
