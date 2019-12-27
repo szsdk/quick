@@ -654,6 +654,10 @@ class GOption(click.Option):
 
 class GuiStream(QtCore.QObject):
     textWritten = QtCore.pyqtSignal(str)
+
+    def flush(self):
+        pass 
+
     def write(self, text):
         self.textWritten.emit(str(text))
 
