@@ -8,7 +8,6 @@ setup(name='quick',
       py_modules=['quick'],
       install_requires=[
           'click>=5.0',
-          'PyQt5'
           ],
       extras_require={
           'qtstyle':  ["qdarkstyle"]
