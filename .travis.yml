@@ -19,7 +19,6 @@ install:
     #- sudo apt-get update
     #- sudo apt-get -y install python3-pyqt5
     - pip install -r requirements.txt
-    - pip install pyqt5
-    - python3 setup.py install
+    - pip install .
 script:
     - python3 test/unit_test.py
