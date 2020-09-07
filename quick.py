@@ -250,15 +250,16 @@ class GLineEdit_path(QtWidgets.QLineEdit):
                 self.style().standardIcon(QtWidgets.QStyle.SP_DirIcon),
                 QtWidgets.QLineEdit.TrailingPosition
                 )
-        self.fdlg = GFileDialog(self, "Select File Dialog", "./", "*",
+        self.fdlg = lambda: GFileDialog(self, "Select File Dialog", "./", "*",
                                 exists = exists,
                                 file_okay = file_okay,
                                 dir_okay= dir_okay)
         self.action.triggered.connect(self.run_dialog)
 
     def run_dialog(self):
-        if self.fdlg.exec() == QtWidgets.QFileDialog.Accepted:
-            self.setText(self.fdlg.selectedFiles()[0])
+        dlg = self.fdlg()
+        if dlg.exec() == QtWidgets.QFileDialog.Accepted:
+            self.setText(dlg.selectedFiles()[0])
 
     @staticmethod
     def from_option(opt, parent=None):
