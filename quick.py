@@ -704,6 +704,9 @@ class App(QtWidgets.QWidget):
         else:
             return None
 
+    def closeEvent(self, event):
+        app = QtWidgets.QApplication.instance()
+        app.quit()
 
     def initCommandUI(self, func, run_exit, parent_layout=None):
         opt_set = CommandLayout(func, run_exit, parent_layout=parent_layout)
