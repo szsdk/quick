@@ -632,7 +632,6 @@ class CommandLayout(QtWidgets.QGridLayout):
                     self.addLayout(w, i, idx)
                 else:
                     self.addWidget(w, i, idx)
-            self.setRowStretch(i, 5)
         return params_func, widgets
 
     def generate_cmd_button(self, label, cmd_slot, tooltip=""):
@@ -653,9 +652,18 @@ class CommandLayout(QtWidgets.QGridLayout):
         row = self.rowCount() + 1
         cmd_layout = QtWidgets.QGridLayout()
         cmd_layout.setHorizontalSpacing(20)
+        cmd_layout.addItem(
+            QtWidgets.QSpacerItem(
+                0, 0, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
+            ),
+            0,
+            0,
+            1,
+            2,
+        )
         for col, arg in enumerate(args):
             button = self.generate_cmd_button(**arg)
-            cmd_layout.addWidget(button, 0, col)
+            cmd_layout.addWidget(button, 1, col)
         self.addLayout(cmd_layout, row, 0, 1, 2)
 
     @QtCore.pyqtSlot()
@@ -671,8 +679,10 @@ class RunCommand(QtCore.QRunnable):
 
     @QtCore.pyqtSlot()
     def run(self):
-        cmd_str = ' '.join(sys.argv)
-        logging.info(f"Running: {cmd_str}", )
+        cmd_str = " ".join(sys.argv)
+        logging.info(
+            f"Running: {cmd_str}",
+        )
         try:
             self.func(standalone_mode=self.run_exit)
             logging.info(f"Successfully executed: {cmd_str}")
