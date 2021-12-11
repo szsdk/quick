@@ -1,3 +1,4 @@
+import signal
 import logging
 import sys
 from functools import partial
@@ -19,6 +20,9 @@ except ModuleNotFoundError:
 
 _GTypeRole = QtCore.Qt.UserRole
 _missing = object()
+signal.signal(
+    signal.SIGINT, signal.SIG_DFL
+)  # make CTRL+C exit the program successfully
 
 
 class GStyle(object):
