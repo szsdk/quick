@@ -1,3 +1,4 @@
+from typing import Optional
 import logging
 import sys
 from functools import partial
@@ -5,9 +6,9 @@ import math
 
 import click
 
-from PyQt5 import QtGui
-from PyQt5 import QtWidgets
-from PyQt5 import QtCore
+from PyQt6 import QtGui
+from PyQt6 import QtWidgets
+from PyQt6 import QtCore
 
 try:
     import qdarkstyle
@@ -17,7 +18,7 @@ except ModuleNotFoundError:
     _has_qdarkstyle = False
 
 
-_GTypeRole = QtCore.Qt.UserRole
+_GTypeRole = QtCore.Qt.ItemDataRole.UserRole
 _missing = object()
 
 
@@ -98,13 +99,15 @@ class GListView(QtWidgets.QListView):
     def __init__(self, opt):
         super(GListView, self).__init__()
         self.nargs = opt.nargs
-        self.model = GItemModel(
+        self._model = GItemModel(
             opt.nargs, parent=self, opt_type=opt.type, default=opt.default
         )
-        self.setModel(self.model)
+        self.setModel(self._model)
         self.delegate = GEditDelegate(self)
         self.setItemDelegate(self.delegate)
-        self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.setSelectionMode(
+            QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection
+        )
         if self.nargs == -1:
             self.keyPressEvent = self.key_press
             self.setToolTip(
@@ -114,25 +117,26 @@ class GListView(QtWidgets.QListView):
 
     def key_press(self, e):
         if self.nargs == -1:
-            if e.key() == QtCore.Qt.Key_A:
+            if e.key() == QtCore.Qt.Key.Key_A:
                 if len(self.selectedIndexes()) == 0:
-                    self.model.insertRow(0)
+                    self._model.insertRow(0)
                 else:
                     for i in self.selectedIndexes():
-                        self.model.insertRow(i.row() + 1)
-            if e.key() == QtCore.Qt.Key_D:
+                        self._model.insertRow(i.row() + 1)
+            if e.key() == QtCore.Qt.Key.Key_D:
                 si = self.selectedIndexes()
                 for i in si:
-                    self.model.removeRow(i.row())
+                    self._model.removeRow(i.row())
         super(GListView, self).keyPressEvent(e)
 
 
 class GItemModel(QtGui.QStandardItemModel):
     def __init__(self, n, parent=None, opt_type=click.STRING, default=None):
-        super(QtGui.QStandardItemModel, self).__init__(0, 1, parent)
+        super(QtGui.QStandardItemModel, self).__init__(0, 1, parent)  # type: ignore
         self.type = opt_type
         for row in range(n):
             if hasattr(default, "__len__"):
+                assert default is not None
                 self.insertRow(row, default[row])
             else:
                 self.insertRow(row, default)
@@ -145,14 +149,14 @@ class GItemModel(QtGui.QStandardItemModel):
             self.setData(
                 index,
                 QtGui.QBrush(QtGui.QColor(_gstyle.placehoder_color)),
-                role=QtCore.Qt.ForegroundRole,
+                role=QtCore.Qt.ItemDataRole.ForegroundRole,
             )
         else:
             self.setData(index, val)
 
-    def data(self, index, role=QtCore.Qt.DisplayRole):
+    def data(self, index, role=QtCore.Qt.ItemDataRole.DisplayRole):
 
-        if role == QtCore.Qt.DisplayRole:
+        if role == QtCore.Qt.ItemDataRole.DisplayRole:
             dstr = QtGui.QStandardItemModel.data(self, index, role)
             if dstr == "" or dstr is None:
                 if isinstance(self.type, click.types.Tuple):
@@ -185,11 +189,16 @@ class GEditDelegate(QtWidgets.QStyledItemDelegate):
         else:
             led = QtWidgets.QLineEdit(parent)
         led.setPlaceholderText(tp.name)
-        led.setValidator(select_type_validator(tp))
+
+        validator = select_type_validator(tp)
+
+        assert validator is not None
+
+        led.setValidator(validator)
         return led
 
     def setEditorData(self, editor, index):
-        item_var = index.data(role=QtCore.Qt.EditRole)
+        item_var = index.data(role=QtCore.Qt.ItemDataRole.EditRole)
         if item_var is not None:
             editor.setText(str(item_var))
 
@@ -199,13 +208,13 @@ class GEditDelegate(QtWidgets.QStyledItemDelegate):
             model.setData(
                 index,
                 QtGui.QBrush(QtGui.QColor(_gstyle.placehoder_color)),
-                role=QtCore.Qt.ForegroundRole,
+                role=QtCore.Qt.ItemDataRole.ForegroundRole,
             )
         else:
             model.setData(
                 index,
                 QtGui.QBrush(QtGui.QColor(_gstyle.text_color)),
-                role=QtCore.Qt.ForegroundRole,
+                role=QtCore.Qt.ItemDataRole.ForegroundRole,
             )
         QtWidgets.QStyledItemDelegate.setModelData(self, editor, model, index)
 
@@ -214,7 +223,7 @@ def generate_label(opt):
     show_name = getattr(opt, "show_name", _missing)
     show_name = opt.name if show_name is _missing else show_name
     param = _OptionLabel(show_name)
-    param.setToolTip(getattr(opt, "help", None))
+    param.setToolTip(str(getattr(opt, "help", None)))
     return param
 
 
@@ -225,7 +234,7 @@ class GStringLineEditor(click.types.StringParamType):
         if opt.default:
             value.setText(str(opt.default))
         if getattr(opt, "hide_input", False):
-            value.setEchoMode(QtWidgets.QLineEdit.Password)
+            value.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
         value.setValidator(validator)
 
         def to_command():
@@ -249,33 +258,33 @@ class GFloatLineEditor(GStringLineEditor):
 class GFileDialog(QtWidgets.QFileDialog):
     def __init__(self, *args, exists=False, file_okay=True, dir_okay=True, **kwargs):
         super(GFileDialog, self).__init__(*args, **kwargs)
-        self.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
-        self.setLabelText(QtWidgets.QFileDialog.Accept, "Select")
+        self.setOption(QtWidgets.QFileDialog.Option.DontUseNativeDialog, True)
+        self.setLabelText(QtWidgets.QFileDialog.DialogLabel.Accept, "Select")
         if (exists, file_okay, dir_okay) == (True, True, False):
-            self.setFileMode(QtWidgets.QFileDialog.ExistingFile)
+            self.setFileMode(QtWidgets.QFileDialog.FileMode.ExistingFile)
         elif (exists, file_okay, dir_okay) == (False, True, False):
-            self.setFileMode(QtWidgets.QFileDialog.AnyFile)
+            self.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
         elif (exists, file_okay, dir_okay) == (True, False, True):
-            self.setFileMode(QtWidgets.QFileDialog.Directory)
+            self.setFileMode(QtWidgets.QFileDialog.FileMode.Directory)
         elif (exists, file_okay, dir_okay) == (False, False, True):
-            self.setFileMode(QtWidgets.QFileDialog.Directory)
+            self.setFileMode(QtWidgets.QFileDialog.FileMode.Directory)
         elif exists is True:
-            self.setFileMode(QtWidgets.QFileDialog.ExistingFile)
+            self.setFileMode(QtWidgets.QFileDialog.FileMode.ExistingFile)
             self.accept = self.accept_all
         elif exists is False:
-            self.setFileMode(QtWidgets.QFileDialog.AnyFile)
+            self.setFileMode(QtWidgets.QFileDialog.FileMode.AnyFile)
             self.accept = self.accept_all
 
     def accept_all(self):
-        super(GFileDialog, self).done(QtWidgets.QFileDialog.Accepted)
+        super(GFileDialog, self).done(QtWidgets.QFileDialog.DialogCode.Accepted)
 
 
 class GLineEdit_path(QtWidgets.QLineEdit):
     def __init__(self, parent=None, exists=False, file_okay=True, dir_okay=True):
         super(GLineEdit_path, self).__init__(parent)
         self.action = self.addAction(
-            self.style().standardIcon(QtWidgets.QStyle.SP_DirIcon),
-            QtWidgets.QLineEdit.TrailingPosition,
+            self.style().standardIcon(QtWidgets.QStyle.StandardPixmap.SP_DirIcon),
+            QtWidgets.QLineEdit.ActionPosition.TrailingPosition,
         )
         self.fdlg = lambda: GFileDialog(
             self,
@@ -290,7 +299,7 @@ class GLineEdit_path(QtWidgets.QLineEdit):
 
     def run_dialog(self):
         dlg = self.fdlg()
-        if dlg.exec() == QtWidgets.QFileDialog.Accepted:
+        if dlg.exec() == QtWidgets.QFileDialog.DialogCode.Accepted:
             self.setText(dlg.selectedFiles()[0])
 
     @staticmethod
@@ -320,7 +329,7 @@ class GPathGLindEidt_path(click.types.Path):
 
 class _GLabeledSlider(QtWidgets.QSlider):
     def __init__(self, min, max, val):
-        super(_GLabeledSlider, self).__init__(QtCore.Qt.Horizontal)
+        super(_GLabeledSlider, self).__init__(QtCore.Qt.Orientation.Horizontal)
         self.min, self.max = min, max
 
         self.setMinimum(min)
@@ -350,7 +359,7 @@ def argument_command(to_command):
 
 class GSlider(QtWidgets.QHBoxLayout):
     def __init__(self, min=0, max=10, default=None, *args, **kwargs):
-        super(QtWidgets.QHBoxLayout, self).__init__()
+        super(QtWidgets.QHBoxLayout, self).__init__()  # type: ignore
 
         self.min, self.max, self.default = min, max, default
         self.label = self.__init_label()
@@ -365,7 +374,7 @@ class GSlider(QtWidgets.QHBoxLayout):
         return self.slider.value()
 
     def __init_slider(self):
-        slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        slider = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
         slider.setMinimum(self.min)
         slider.setMaximum(self.max)
         default_val = (self.min + self.max) // 2
@@ -400,7 +409,7 @@ class GIntRangeGSlider(click.types.IntRange):
 
 class GIntRangeSlider(click.types.IntRange):
     def to_widget(self, opt):
-        value = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        value = QtWidgets.QSlider(QtCore.Qt.Orientation.Horizontal)
         value.setMinimum(self.min)
         value.setMaximum(self.max)
 
@@ -489,7 +498,7 @@ def multi_text_arguement(opt):
     return [_OptionLabel(opt.name), value], to_command
 
 
-def select_type_validator(tp: click.types.ParamType) -> QtGui.QValidator:
+def select_type_validator(tp: click.types.ParamType) -> Optional[QtGui.QValidator]:
     """select the right validator for `tp`"""
     if isinstance(tp, click.types.IntParamType):
         return QtGui.QIntValidator()
@@ -547,7 +556,12 @@ def layout_append_opts(layout, opts):
     widgets = []
     i = 0
     for i, para in enumerate(opts):
-        widget, value_func = _to_widget(para)
+        result = _to_widget(para)
+
+        assert result is not None
+
+        widget, value_func = result
+
         widgets.append(widget)
         params_func.append(value_func)
         for idx, w in enumerate(widget):
@@ -570,7 +584,7 @@ def generate_sysargv(cmd_list):
 class _Spliter(QtWidgets.QFrame):
     def __init__(self, parent=None):
         super(_Spliter, self).__init__(parent=parent)
-        self.setFrameShape(QtWidgets.QFrame.HLine)
+        self.setFrameShape(QtWidgets.QFrame.Shape.HLine)
 
 
 class _InputComboBox(QtWidgets.QComboBox):
@@ -617,6 +631,9 @@ class CommandLayout(QtWidgets.QGridLayout):
 
     def add_sysargv(self):
         if hasattr(self.parent_layout, "add_sysargv"):
+
+            assert self.parent_layout is not None
+
             self.parent_layout.add_sysargv()
         sys.argv += generate_sysargv([(self.func.name, self.params_func)])
 
@@ -624,7 +641,12 @@ class CommandLayout(QtWidgets.QGridLayout):
         params_func = []
         widgets = []
         for i, para in enumerate(opts, self.rowCount()):
-            widget, value_func = _to_widget(para)
+            result = _to_widget(para)
+
+            assert result is not None
+
+            widget, value_func = result
+
             widgets.append(widget)
             params_func.append(value_func)
             for idx, w in enumerate(widget):
@@ -654,7 +676,7 @@ class CommandLayout(QtWidgets.QGridLayout):
         cmd_layout.setHorizontalSpacing(20)
         cmd_layout.addItem(
             QtWidgets.QSpacerItem(
-                0, 0, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
+                0, 0, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding
             ),
             0,
             0,
@@ -689,15 +711,15 @@ class RunCommand(QtCore.QRunnable):
         except click.exceptions.BadParameter as bpe:
             # warning message
             msg = QtWidgets.QMessageBox()
-            msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
             msg.setText(bpe.format_message())
-            msg.exec_()
+            msg.exec()
         except Exception as bpe:
             logging.error(bpe)
             msg = QtWidgets.QMessageBox()
-            msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.setIcon(QtWidgets.QMessageBox.Icon.Warning)
             msg.setText(repr(bpe))
-            msg.exec_()
+            msg.exec()
 
 
 class GCommand(click.Command):
@@ -735,7 +757,7 @@ class GuiStream(QtCore.QObject):
 class OutputEdit(QtWidgets.QTextEdit):
     def print(self, text):
         cursor = self.textCursor()
-        cursor.movePosition(QtGui.QTextCursor.End)
+        cursor.movePosition(QtGui.QTextCursor.MoveOperation.End)
         cursor.insertText(text)
         self.setTextCursor(cursor)
         self.ensureCursorVisible()
@@ -828,14 +850,14 @@ class App(QtWidgets.QWidget):
     @QtCore.pyqtSlot()
     def copy_cmd(self):
         cb = QtWidgets.QApplication.clipboard()
-        cb.clear(mode=cb.Clipboard)
+        cb.clear(mode=cb.Mode.Clipboard)
         cmd_text = " ".join(sys.argv)
-        cb.setText(cmd_text, mode=cb.Clipboard)
+        cb.setText(cmd_text, mode=cb.Mode.Clipboard)
 
         msg = QtWidgets.QMessageBox()
-        msg.setIcon(QtWidgets.QMessageBox.Information)
+        msg.setIcon(QtWidgets.QMessageBox.Icon.Information)
         msg.setText(f"copy '{cmd_text}' to clipboard")
-        msg.exec_()
+        msg.exec()
 
     def run_cmd(self, new_thread):
         runcmd = RunCommand(self.func, self.run_exit)
@@ -862,7 +884,7 @@ def gui_it(click_func, style="qdarkstyle", **kargs) -> None:
     kargs["new_thread"] = kargs.get("new_thread", False)
 
     ex = App(click_func, **kargs)
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 def gui_option(f: click.core.BaseCommand, **kargs) -> click.core.BaseCommand:
