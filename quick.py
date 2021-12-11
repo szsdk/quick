@@ -439,7 +439,7 @@ class GIntRangeLineEditor(click.types.IntRange):
 def bool_flag_option(opt):
     checkbox = _InputCheckBox(opt.name)
     if opt.default:
-        checkbox.setCheckState(2)
+        checkbox.setCheckState(QtCore.Qt.CheckState.Checked)  # FIXME: Checked or PartiallyChecked
     # set tip
     checkbox.setToolTip(opt.help)
 
