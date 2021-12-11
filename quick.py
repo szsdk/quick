@@ -887,7 +887,7 @@ def gui_it(click_func, style="qdarkstyle", **kargs) -> None:
     sys.exit(app.exec())
 
 
-def gui_option(f: click.core.BaseCommand, **kargs) -> click.core.BaseCommand:
+def gui_option(f: click.core.Command, **kargs) -> click.core.Command:
     """decorator for adding '--gui' option to command"""
     # TODO: add run_exit, new_thread
     def run_gui_it(ctx, param, value):
