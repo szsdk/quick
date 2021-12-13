@@ -235,7 +235,7 @@ class GStringLineEditor(click.types.StringParamType):
         def to_command():
             return [opt.opts[0], value.text()]
 
-        return [generate_label(opt), value], to_command
+        return [value], to_command
 
 
 class GIntLineEditor(GStringLineEditor):
@@ -319,7 +319,7 @@ class GPathGLindEidt_path(click.types.Path):
         def to_command():
             return [opt.opts[0], value.text()]
 
-        return [generate_label(opt), value], to_command
+        return [value], to_command
 
 
 class _GLabeledSlider(QtWidgets.QSlider):
@@ -399,7 +399,7 @@ class GIntRangeGSlider(click.types.IntRange):
         def to_command():
             return [opt.opts[0], str(value.value())]
 
-        return [generate_label(opt), value], to_command
+        return [value], to_command
 
 
 class GIntRangeSlider(click.types.IntRange):
@@ -417,7 +417,7 @@ class GIntRangeSlider(click.types.IntRange):
         def to_command():
             return [opt.opts[0], str(value.value())]
 
-        return [generate_label(opt), value], to_command
+        return [value], to_command
 
 
 class GIntRangeLineEditor(click.types.IntRange):
@@ -428,7 +428,7 @@ class GIntRangeLineEditor(click.types.IntRange):
         def to_command():
             return [opt.opts[0], value.text()]
 
-        return [generate_label(opt), value], to_command
+        return [value], to_command
 
 
 def bool_flag_option(opt):
@@ -455,7 +455,7 @@ class GChoiceComboBox(click.types.Choice):
         def to_command():
             return [opt.opts[0], cb.currentText()]
 
-        return [generate_label(opt), cb], to_command
+        return [cb], to_command
 
 
 def count_option(opt):
@@ -464,7 +464,7 @@ def count_option(opt):
     def to_command():
         return [opt.opts[0]] * int(sb.text())
 
-    return [generate_label(opt), sb], to_command
+    return [sb], to_command
 
 
 class GTupleGListView(click.Tuple):
@@ -477,7 +477,7 @@ class GTupleGListView(click.Tuple):
                 _.append(view.model.item(idx).text())
             return _
 
-        return [generate_label(opt), view], to_command
+        return [view], to_command
 
 
 def multi_text_arguement(opt):
@@ -506,26 +506,96 @@ def select_opt_validator(opt):
     """select the right validator for `opt`"""
     return select_type_validator(opt.type)
 
+_TO_WIDGET = {click.types.Choice: GChoiceComboBox, 
+click.types.Path: GPathGLindEidt_path,
+click.types.IntRange: GIntRangeGSlider,
+click.types.IntParamType: GIntLineEditor,
+click.types.FloatParamType: GFloatLineEditor
+}
 
 def opt_to_widget(opt):
+    def add_label(ans):
+        widgets, to_command = ans
+        widgets.insert(0, generate_label(opt))
+        return ans
+
     if opt.nargs > 1:
-        return GTupleGListView.to_widget(opt.type, opt)
+        ans = add_label(GTupleGListView.to_widget(opt.type, opt))
     elif getattr(opt, "is_bool_flag", False):
-        return bool_flag_option(opt)
+        ans = bool_flag_option(opt)
     elif getattr(opt, "count", False):
-        return count_option(opt)
-    elif isinstance(opt.type, click.types.Choice):
-        return GChoiceComboBox.to_widget(opt.type, opt)
-    elif isinstance(opt.type, click.types.Path):
-        return GPathGLindEidt_path.to_widget(opt.type, opt)
-    elif isinstance(opt.type, click.types.IntRange):
-        return GIntRangeGSlider.to_widget(opt.type, opt)
-    elif isinstance(opt.type, click.types.IntParamType):
-        return GIntLineEditor.to_widget(opt.type, opt)
-    elif isinstance(opt.type, click.types.FloatParamType):
-        return GFloatLineEditor.to_widget(opt.type, opt)
+        ans = add_label(count_option(opt))
     else:
-        return GStringLineEditor.to_widget(opt.type, opt)
+        for t, w_class in _TO_WIDGET.items():
+            if isinstance(opt.type, t):
+                break
+        else:
+            w_class = GStringLineEditor
+        if opt.multiple:
+            s = GMultiple(w_class, opt)
+            ans = add_label([[s], s.to_command])
+        else:
+            ans = add_label(w_class.to_widget(opt.type, opt))
+    return ans
+
+
+class GMultiple(QtWidgets.QGridLayout):
+    def __init__(self, cl, opt):
+        super().__init__()
+        self._class = cl
+        self._opt = opt
+        self._to_command =[]
+        self.add()
+
+    def add(self, button=None):
+        i = 0 if button is None else button.i + 1
+        if i < len(self._to_command):
+            for row_id in range(len(self._to_command), i, -1):
+                for j in range(3):
+                    w = self.itemAtPosition(row_id - 1, j).widget()
+                    self.addWidget(w, row_id, j, 1, 1)
+                    w.i += 1
+
+        w, c = self._class.to_widget(self._opt.type, self._opt)
+        add_button = QtWidgets.QPushButton("+")
+        add_button.clicked.connect(lambda: self.add(add_button))
+        remove_button = QtWidgets.QPushButton("-")
+        remove_button.clicked.connect(lambda: self.remove(remove_button))
+        for j, w in enumerate([w[0], add_button, remove_button]):
+            w.i = i
+            self.addWidget(w, i, j, 1, 1)
+        self._to_command.insert(i, c)
+
+    def remove(self, button):
+        i = button.i
+        if i == 0 and len(self._to_command) == 1:
+            return
+        was = []
+        for row_id in range(i, len(self._to_command)):
+            rws = []
+            for j in range(3):
+                w = self.itemAtPosition(row_id, j).widget()
+                w.i -= 1
+                rws.append(w)
+                self.removeWidget(w)
+            was.append(rws)
+        for w in was[0]:
+            w.hide()
+            print(w.i)
+            del w
+        was = was[1:]
+        self._to_command.pop(i)
+        for row_id, rws in enumerate(was, i):
+            for j, w in enumerate(rws):
+                self.addWidget(w, row_id, j, 1, 1)
+
+
+    def to_command(self):
+        ans = []
+        for c in self._to_command:
+            ans.extend(c())
+        return ans
+
 
 
 def _to_widget(opt):

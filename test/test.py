@@ -25,7 +25,7 @@ def cli(**argvs):
 @click.option("--flag", is_flag=True)
 @click.option("--int_range", type=click.types.IntRange(10, 20))
 @click.option("--shout/--no-shout", default=True)
-@click.option("--language", type=click.Choice(["c", "c++"]))
+@click.option("--language", type=click.Choice(["c", "c++"]), multiple=True)
 @click.option("-v", "--verbose", count=True)
 def example_cmd(**argvs):
     for k, v in argvs.items():
