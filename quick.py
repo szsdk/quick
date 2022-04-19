@@ -516,6 +516,7 @@ def select_opt_validator(opt):
     """select the right validator for `opt`"""
     return select_type_validator(opt.type)
 
+
 _TO_WIDGET = {
     click.types.Choice: GChoiceComboBox, 
     click.types.Path: GPathGLineEdit_path,
