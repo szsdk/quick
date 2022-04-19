@@ -3,6 +3,7 @@ import logging
 import sys
 from functools import partial
 import math
+from copy import copy
 
 import click
 
@@ -307,7 +308,7 @@ class GLineEdit_path(QtWidgets.QLineEdit):
         )
 
 
-class GPathGLindEdit_path(click.types.Path):
+class GPathGLineEdit_path(click.types.Path):
     def to_widget(self, opt):
         value = GLineEdit_path(
             exists=self.exists, file_okay=self.file_okay, dir_okay=self.dir_okay
@@ -506,12 +507,15 @@ def select_opt_validator(opt):
     """select the right validator for `opt`"""
     return select_type_validator(opt.type)
 
-_TO_WIDGET = {click.types.Choice: GChoiceComboBox, 
-click.types.Path: GPathGLindEdit_path,
-click.types.IntRange: GIntRangeGSlider,
-click.types.IntParamType: GIntLineEditor,
-click.types.FloatParamType: GFloatLineEditor
+
+_TO_WIDGET = {
+    click.types.Choice: GChoiceComboBox, 
+    click.types.Path: GPathGLineEdit_path,
+    click.types.IntRange: GIntRangeGSlider,
+    click.types.IntParamType: GIntLineEditor,
+    click.types.FloatParamType: GFloatLineEditor
 }
+
 
 def opt_to_widget(opt):
     def add_label(ans):
@@ -544,8 +548,20 @@ class GMultiple(QtWidgets.QGridLayout):
         super().__init__()
         self._class = cl
         self._opt = opt
-        self._to_command =[]
-        self.add()
+        self._to_command = []
+        self.init_add()
+    
+    def init_add(self):
+        try:
+            iterable = enumerate(self._opt.default)
+        except:
+            self.add()
+        else:
+            for i, default in iterable:
+                opt = copy(self._opt)
+                opt.default = default
+                self._add(opt, i)
+            self._opt.default = []
 
     def add(self, button=None):
         i = 0 if button is None else button.i + 1
@@ -555,8 +571,10 @@ class GMultiple(QtWidgets.QGridLayout):
                     w = self.itemAtPosition(row_id - 1, j).widget()
                     self.addWidget(w, row_id, j, 1, 1)
                     w.i += 1
-
-        w, c = self._class.to_widget(self._opt.type, self._opt)
+        self._add(self._opt, i)
+        
+    def _add(self, opt, i):
+        w, c = self._class.to_widget(opt.type, opt)
         add_button = QtWidgets.QPushButton("+")
         add_button.clicked.connect(lambda: self.add(add_button))
         remove_button = QtWidgets.QPushButton("-")
@@ -581,7 +599,6 @@ class GMultiple(QtWidgets.QGridLayout):
             was.append(rws)
         for w in was[0]:
             w.hide()
-            print(w.i)
             del w
         was = was[1:]
         self._to_command.pop(i)
@@ -939,21 +956,26 @@ def gui_it(click_func, style="qdarkstyle", **kargs) -> None:
     sys.exit(app.exec_())
 
 
-def gui_option(f: click.core.BaseCommand, **kargs) -> click.core.BaseCommand:
+def gui_option(**kargs) -> click.core.BaseCommand:
     """decorator for adding '--gui' option to command"""
+    
     # TODO: add run_exit, new_thread
-    def run_gui_it(ctx, param, value):
-        if not value or ctx.resilient_parsing:
-            return
-        f.params = [p for p in f.params if not p.name == "gui"]
-        gui_it(f, **kargs)
-        ctx.exit()
+    
+    def actual_decorator(f: click.core.BaseCommand):
+        def run_gui_it(ctx, param, value):
+            if not value or ctx.resilient_parsing:
+                return
+            f.params = [p for p in f.params if not p.name == "gui"]
+            gui_it(f, **kargs)
+            ctx.exit()
+        
+        return click.option(
+            "--gui",
+            is_flag=True,
+            callback=run_gui_it,
+            help="run with gui",
+            expose_value=False,
+            is_eager=False,
+        )(f)
 
-    return click.option(
-        "--gui",
-        is_flag=True,
-        callback=run_gui_it,
-        help="run with gui",
-        expose_value=False,
-        is_eager=False,
-    )(f)
+    return actual_decorator

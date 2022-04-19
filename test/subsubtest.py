@@ -1,7 +1,7 @@
 import quick
 import click
 
-
+@quick.gui_option(top=40)
 @click.group()
 @click.option("--debug/--no-debug", default=False)
 def main(debug):
@@ -24,4 +24,5 @@ def sub_sub_func1():
 
 
 if __name__ == "__main__":
-    quick.gui_it(main)
+    # quick.gui_it(main, top=40)
+    main()

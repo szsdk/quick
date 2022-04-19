@@ -5,7 +5,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
-# @quick.gui_option
+@quick.gui_option(run_exit=False, new_thread=False, style="qdarkstyle", width=450, top=28)
 @click.group(help="Test for quick library")
 @click.option("--debug/--no-debug", default=False)
 def cli(**argvs):
@@ -111,5 +111,5 @@ def option_gui():
 if __name__ == "__main__":
     # quick.gui_it(example_cmd, run_exit=True)
     # option_gui()
-    quick.gui_it(cli, run_exit=False, new_thread=False, style="qdarkstyle", width=450)
-    # cli()
+    # quick.gui_it(cli, run_exit=False, new_thread=False, style="qdarkstyle", width=450, top=45)
+    cli()
