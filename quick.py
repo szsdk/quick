@@ -480,7 +480,7 @@ class GTupleGListView(click.Tuple):
         return [view], to_command
 
 
-def multi_text_arguement(opt):
+def multi_text_argument(opt):
     value = GListView(opt)
 
     def to_command():
@@ -611,7 +611,7 @@ def _to_widget(opt):
             w, tc = opt_to_widget(opt)
             return w, argument_command(tc)
         elif opt.nargs > 1 or opt.nargs == -1:
-            return multi_text_arguement(opt)
+            return multi_text_argument(opt)
     else:
         return opt_to_widget(opt)
 
