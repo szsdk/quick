@@ -4,6 +4,7 @@ import logging
 import sys
 from functools import partial
 import math
+from copy import copy
 
 import click
 
@@ -316,7 +317,7 @@ class GLineEdit_path(QtWidgets.QLineEdit):
         )
 
 
-class GPathGLindEidt_path(click.types.Path):
+class GPathGLineEdit_path(click.types.Path):
     def to_widget(self, opt):
         value = GLineEdit_path(
             exists=self.exists, file_okay=self.file_okay, dir_okay=self.dir_okay
@@ -489,7 +490,7 @@ class GTupleGListView(click.Tuple):
         return [view], to_command
 
 
-def multi_text_arguement(opt):
+def multi_text_argument(opt):
     value = GListView(opt)
 
     def to_command():
@@ -515,11 +516,12 @@ def select_opt_validator(opt):
     """select the right validator for `opt`"""
     return select_type_validator(opt.type)
 
-_TO_WIDGET = {click.types.Choice: GChoiceComboBox, 
-click.types.Path: GPathGLindEidt_path,
-click.types.IntRange: GIntRangeGSlider,
-click.types.IntParamType: GIntLineEditor,
-click.types.FloatParamType: GFloatLineEditor
+_TO_WIDGET = {
+    click.types.Choice: GChoiceComboBox, 
+    click.types.Path: GPathGLineEdit_path,
+    click.types.IntRange: GIntRangeGSlider,
+    click.types.IntParamType: GIntLineEditor,
+    click.types.FloatParamType: GFloatLineEditor
 }
 
 def opt_to_widget(opt):
@@ -553,8 +555,20 @@ class GMultiple(QtWidgets.QGridLayout):
         super().__init__()
         self._class = cl
         self._opt = opt
-        self._to_command =[]
-        self.add()
+        self._to_command = []
+        self.init_add()
+    
+    def init_add(self):
+        try:
+            iterable = enumerate(self._opt.default)
+        except:
+            self.add()
+        else:
+            for i, default in iterable:
+                opt = copy(self._opt)
+                opt.default = default
+                self._add(opt, i)
+            self._opt.default = []
 
     def add(self, button=None):
         i = 0 if button is None else button.i + 1
@@ -564,8 +578,10 @@ class GMultiple(QtWidgets.QGridLayout):
                     w = self.itemAtPosition(row_id - 1, j).widget()
                     self.addWidget(w, row_id, j, 1, 1)
                     w.i += 1
-
-        w, c = self._class.to_widget(self._opt.type, self._opt)
+        self._add(self._opt, i)
+        
+    def _add(self, opt, i):
+        w, c = self._class.to_widget(opt.type, opt)
         add_button = QtWidgets.QPushButton("+")
         add_button.clicked.connect(lambda: self.add(add_button))
         remove_button = QtWidgets.QPushButton("-")
@@ -590,7 +606,6 @@ class GMultiple(QtWidgets.QGridLayout):
             was.append(rws)
         for w in was[0]:
             w.hide()
-            print(w.i)
             del w
         was = was[1:]
         self._to_command.pop(i)
@@ -620,7 +635,7 @@ def _to_widget(opt):
             w, tc = opt_to_widget(opt)
             return w, argument_command(tc)
         elif opt.nargs > 1 or opt.nargs == -1:
-            return multi_text_arguement(opt)
+            return multi_text_argument(opt)
     else:
         return opt_to_widget(opt)
 
