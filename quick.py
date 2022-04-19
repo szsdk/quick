@@ -8,9 +8,9 @@ from copy import copy
 
 import click
 
-from PyQt6 import QtGui
-from PyQt6 import QtWidgets
-from PyQt6 import QtCore
+from PyQt5 import QtGui
+from PyQt5 import QtWidgets
+from PyQt5 import QtCore
 
 try:
     import qdarkstyle
@@ -518,11 +518,11 @@ def select_opt_validator(opt):
 
 
 _TO_WIDGET = {
-    click.types.Choice: GChoiceComboBox, 
+    click.types.Choice: GChoiceComboBox,
     click.types.Path: GPathGLineEdit_path,
     click.types.IntRange: GIntRangeGSlider,
     click.types.IntParamType: GIntLineEditor,
-    click.types.FloatParamType: GFloatLineEditor
+    click.types.FloatParamType: GFloatLineEditor,
 }
 
 def opt_to_widget(opt):
@@ -558,7 +558,7 @@ class GMultiple(QtWidgets.QGridLayout):
         self._opt = opt
         self._to_command = []
         self.init_add()
-    
+
     def init_add(self):
         try:
             iterable = enumerate(self._opt.default)
@@ -580,7 +580,7 @@ class GMultiple(QtWidgets.QGridLayout):
                     self.addWidget(w, row_id, j, 1, 1)
                     w.i += 1
         self._add(self._opt, i)
-        
+
     def _add(self, opt, i):
         w, c = self._class.to_widget(opt.type, opt)
         add_button = QtWidgets.QPushButton("+")
@@ -614,13 +614,11 @@ class GMultiple(QtWidgets.QGridLayout):
             for j, w in enumerate(rws):
                 self.addWidget(w, row_id, j, 1, 1)
 
-
     def to_command(self):
         ans = []
         for c in self._to_command:
             ans.extend(c())
         return ans
-
 
 
 def _to_widget(opt):
@@ -977,11 +975,11 @@ def gui_it(click_func, style="qdarkstyle", **kargs) -> None:
     sys.exit(app.exec())
 
 
-def gui_option(f: click.core.Command, **kargs) -> click.core.Command:
+def gui_option(**kargs) -> click.core.Command:
     """decorator for adding '--gui' option to command"""
-    
+
     # TODO: add run_exit, new_thread
-    
+
     def actual_decorator(f: click.core.BaseCommand):
         def run_gui_it(ctx, param, value):
             if not value or ctx.resilient_parsing:
@@ -989,7 +987,7 @@ def gui_option(f: click.core.Command, **kargs) -> click.core.Command:
             f.params = [p for p in f.params if not p.name == "gui"]
             gui_it(f, **kargs)
             ctx.exit()
-        
+
         return click.option(
             "--gui",
             is_flag=True,
