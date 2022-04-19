@@ -963,19 +963,24 @@ def gui_it(click_func, style="qdarkstyle", **kargs) -> None:
 
 def gui_option(f: click.core.Command, **kargs) -> click.core.Command:
     """decorator for adding '--gui' option to command"""
+    
     # TODO: add run_exit, new_thread
-    def run_gui_it(ctx, param, value):
-        if not value or ctx.resilient_parsing:
-            return
-        f.params = [p for p in f.params if not p.name == "gui"]
-        gui_it(f, **kargs)
-        ctx.exit()
+    
+    def actual_decorator(f: click.core.BaseCommand):
+        def run_gui_it(ctx, param, value):
+            if not value or ctx.resilient_parsing:
+                return
+            f.params = [p for p in f.params if not p.name == "gui"]
+            gui_it(f, **kargs)
+            ctx.exit()
+        
+        return click.option(
+            "--gui",
+            is_flag=True,
+            callback=run_gui_it,
+            help="run with gui",
+            expose_value=False,
+            is_eager=False,
+        )(f)
 
-    return click.option(
-        "--gui",
-        is_flag=True,
-        callback=run_gui_it,
-        help="run with gui",
-        expose_value=False,
-        is_eager=False,
-    )(f)
+    return actual_decorator
