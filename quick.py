@@ -307,7 +307,7 @@ class GLineEdit_path(QtWidgets.QLineEdit):
         )
 
 
-class GPathGLindEidt_path(click.types.Path):
+class GPathGLindEdit_path(click.types.Path):
     def to_widget(self, opt):
         value = GLineEdit_path(
             exists=self.exists, file_okay=self.file_okay, dir_okay=self.dir_okay
@@ -507,7 +507,7 @@ def select_opt_validator(opt):
     return select_type_validator(opt.type)
 
 _TO_WIDGET = {click.types.Choice: GChoiceComboBox, 
-click.types.Path: GPathGLindEidt_path,
+click.types.Path: GPathGLindEdit_path,
 click.types.IntRange: GIntRangeGSlider,
 click.types.IntParamType: GIntLineEditor,
 click.types.FloatParamType: GFloatLineEditor
