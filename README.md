@@ -62,7 +62,7 @@ add a `--gui` option to it. Then you can do this.
 from quick import gui_option
 import click
 
-@gui_option
+@gui_option()
 @click.group()
 @click.option('--debug/--no-debug', default=False)
 def cli(debug):
