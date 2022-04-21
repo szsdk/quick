@@ -8,9 +8,9 @@ from copy import copy
 
 import click
 
-from PyQt5 import QtGui
-from PyQt5 import QtWidgets
-from PyQt5 import QtCore
+from qtpy import QtGui
+from qtpy import QtWidgets
+from qtpy import QtCore
 
 try:
     import qdarkstyle
@@ -344,14 +344,14 @@ class _GLabeledSlider(QtWidgets.QSlider):
         self.label = self.__init_label()
 
     def __init_label(self):
-        l = max(
+        length = max(
             [
                 math.ceil(math.log10(abs(x))) if x != 0 else 1
                 for x in [self.min, self.max]
             ]
         )
-        l += 1
-        return QtWidgets.QLabel("0" * l)
+        length += 1
+        return QtWidgets.QLabel("0" * length)
 
 
 def argument_command(to_command):
@@ -392,14 +392,14 @@ class GSlider(QtWidgets.QHBoxLayout):
         return slider
 
     def __init_label(self):
-        l = max(
+        length = max(
             [
                 math.ceil(math.log10(abs(x))) if x != 0 else 1
                 for x in [self.min, self.max]
             ]
         )
-        l += 1
-        return QtWidgets.QLabel("0" * l)
+        length += 1
+        return QtWidgets.QLabel("0" * length)
 
 
 class GIntRangeGSlider(click.types.IntRange):
@@ -780,7 +780,7 @@ class CommandLayout(QtWidgets.QGridLayout):
             cmd_layout.addWidget(button, 1, col)
         self.addLayout(cmd_layout, row, 0, 1, 2)
 
-    @QtCore.pyqtSlot()
+    @QtCore.Slot()
     def clean_sysargv(self):
         sys.argv = []
 
@@ -791,7 +791,7 @@ class RunCommand(QtCore.QRunnable):
         self.func = func
         self.run_exit = run_exit
 
-    @QtCore.pyqtSlot()
+    @QtCore.Slot()
     def run(self):
         cmd_str = " ".join(sys.argv)
         logging.info(
@@ -826,18 +826,8 @@ class GOption(click.Option):
         self.show_name = show_name
 
 
-# def normalOutputWritten(t):
-# """Append text to the QTextEdit."""
-# Maybe QTextEdit.append() works as well, but this is how I do it:
-# cursor = text.textCursor()
-# cursor.movePosition(QtGui.QTextCursor.End)
-# cursor.insertText(t)
-# text.setTextCursor(cursor)
-# text.ensureCursorVisible()
-
-
 class GuiStream(QtCore.QObject):
-    textWritten = QtCore.pyqtSignal(str)
+    textWritten = QtCore.Signal(str)
 
     def flush(self):
         pass
@@ -939,7 +929,7 @@ class App(QtWidgets.QWidget):
         self.setLayout(self.opt_set)
         self.show()
 
-    @QtCore.pyqtSlot()
+    @QtCore.Slot()
     def copy_cmd(self):
         cb = QtWidgets.QApplication.clipboard()
         cb.clear(mode=cb.Mode.Clipboard)
