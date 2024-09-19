@@ -7,7 +7,7 @@ authors = [
 ]
 dependencies = ["click>=6.5", "pyqt5"]
 requires-python = ">=3.7"
-license = {text = "GPL"}
+license = {text = "MIT"}
 
 [project.optional-dependencies]
 extra = [
